@@ -87,7 +87,7 @@ The extension declares these exact network hosts:
 - `texttospeech.googleapis.com`
 - `*.tts.speech.microsoft.com`
 
-The desktop host rejects plain HTTP, undeclared hosts, unsafe headers, oversized requests/responses, and redirects outside the allowlist. API keys are encrypted at rest by Electron’s operating-system-backed `safeStorage`; they are not stored in workspace data, local storage, generated media, diagnostics, or extension packages.
+The desktop host rejects plain HTTP, undeclared hosts, unsafe headers, oversized requests/responses, and redirects outside the allowlist. API keys are encrypted at rest by Electron’s operating-system-backed `safeStorage`; they are not stored in workspace data, local storage, generated media, diagnostics, or extension packages. On Linux, Secret Service or KWallet is required—the insecure `basic_text` fallback is rejected and no key is written.
 
 Text is sent only to the provider selected by the matching track. Generated audio becomes workspace media and therefore appears in backups and any sync transport the user enables. System voices can be OS-managed online voices; their implementation is controlled by the operating system.
 

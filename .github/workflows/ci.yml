@@ -10,7 +10,11 @@ permissions:
 
 jobs:
   verify:
-    runs-on: ubuntu-latest
+    strategy:
+      fail-fast: false
+      matrix:
+        os: [ubuntu-24.04, macos-15]
+    runs-on: ${{ matrix.os }}
     steps:
       - uses: actions/checkout@v4
         with:
@@ -40,9 +44,14 @@ jobs:
         working-directory: neoanki-tts
       - run: npm run desktop:prepare
         working-directory: neo-anki
-      - run: xvfb-run --auto-servernum npm run test:desktop
+      - if: runner.os == 'Linux'
+        run: xvfb-run --auto-servernum npm run test:desktop
+        working-directory: neoanki-tts
+      - if: runner.os == 'macOS'
+        run: npm run test:desktop
         working-directory: neoanki-tts
       - uses: actions/upload-artifact@v4
+        if: runner.os == 'Linux'
         with:
           name: neoanki-tts-extension
           path: neoanki-tts/build/*.neoanki-extension
