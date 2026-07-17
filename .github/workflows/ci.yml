@@ -1,0 +1,40 @@
+name: CI
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+
+permissions:
+  contents: read
+
+jobs:
+  verify:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          path: neoanki-tts
+      - uses: actions/checkout@v4
+        with:
+          repository: neoanki/neo-anki
+          path: neo-anki
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+          cache-dependency-path: neoanki-tts/package-lock.json
+      - run: npm ci
+        working-directory: neoanki-tts
+      - run: npm test
+        working-directory: neoanki-tts
+      - run: npm run typecheck
+        working-directory: neoanki-tts
+      - run: npm run check
+        working-directory: neoanki-tts
+      - run: npm run build
+        working-directory: neoanki-tts
+      - uses: actions/upload-artifact@v4
+        with:
+          name: neoanki-tts-extension
+          path: neoanki-tts/build/*.neoanki-extension

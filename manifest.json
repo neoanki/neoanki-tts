@@ -1,0 +1,13 @@
+{
+  "format": "neo-anki-extension",
+  "schemaVersion": 1,
+  "id": "org.neoanki.tts",
+  "name": "NeoAnki TTS",
+  "version": "0.1.0",
+  "sdkVersion": 1,
+  "publisher": "NeoAnki contributors",
+  "description": "Language-aware system text-to-speech with automatic prompt and answer playback.",
+  "homepage": "https://github.com/neoanki/neoanki-tts",
+  "permissions": ["ui:settings-panels", "review:tools"],
+  "entry": "dist/index.js"
+}

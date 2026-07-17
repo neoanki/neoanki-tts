@@ -1,0 +1,37 @@
+name: Release
+
+on:
+  push:
+    tags: ['v*']
+
+permissions:
+  contents: write
+
+jobs:
+  release:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          path: neoanki-tts
+      - uses: actions/checkout@v4
+        with:
+          repository: neoanki/neo-anki
+          path: neo-anki
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+          cache-dependency-path: neoanki-tts/package-lock.json
+      - run: npm ci
+        working-directory: neoanki-tts
+      - run: npm test && npm run typecheck && npm run check && npm run build
+        working-directory: neoanki-tts
+      - name: Create checksums
+        run: sha256sum build/*.neoanki-extension > build/SHA256SUMS.txt
+        working-directory: neoanki-tts
+      - name: Publish GitHub release
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: gh release create "$GITHUB_REF_NAME" build/*.neoanki-extension build/SHA256SUMS.txt --repo "$GITHUB_REPOSITORY" --generate-notes --verify-tag
+        working-directory: neoanki-tts
