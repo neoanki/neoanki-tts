@@ -3,6 +3,12 @@ name: Release
 on:
   push:
     tags: ['v*']
+  workflow_dispatch:
+    inputs:
+      tag:
+        description: Existing release tag to publish
+        required: true
+        type: string
 
 permissions:
   contents: write
@@ -10,10 +16,13 @@ permissions:
 jobs:
   release:
     runs-on: ubuntu-latest
+    env:
+      RELEASE_TAG: ${{ inputs.tag || github.ref_name }}
     steps:
       - uses: actions/checkout@v4
         with:
           path: neoanki-tts
+          ref: ${{ inputs.tag || github.ref }}
       - uses: actions/checkout@v4
         with:
           repository: neoanki/neo-anki
@@ -31,9 +40,9 @@ jobs:
         working-directory: neoanki-tts
       - run: npm test && npm run typecheck && npm run check && npm run build
         working-directory: neoanki-tts
-      - run: npm run desktop:prepare
+      - run: npm run build && npm run desktop:prepare
         working-directory: neo-anki
-      - run: npm run test:desktop
+      - run: xvfb-run --auto-servernum npm run test:desktop
         working-directory: neoanki-tts
       - name: Create checksums
         run: sha256sum build/*.neoanki-extension > build/SHA256SUMS.txt
@@ -41,5 +50,5 @@ jobs:
       - name: Publish GitHub release
         env:
           GH_TOKEN: ${{ github.token }}
-        run: gh release create "$GITHUB_REF_NAME" build/*.neoanki-extension build/SHA256SUMS.txt --repo "$GITHUB_REPOSITORY" --generate-notes --verify-tag
+        run: gh release create "$RELEASE_TAG" build/*.neoanki-extension build/SHA256SUMS.txt --repo "$GITHUB_REPOSITORY" --generate-notes --verify-tag
         working-directory: neoanki-tts
