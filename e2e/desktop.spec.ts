@@ -52,7 +52,11 @@ test('installs the full extension and keeps provider credentials encrypted', asy
     await expect(window.getByText(/no cloud track in “Generated & synced” mode/i)).toBeVisible()
     if (process.env.NEOANKI_TTS_SCREENSHOT) await window.screenshot({ path: process.env.NEOANKI_TTS_SCREENSHOT, fullPage: true })
   } finally {
-    await desktop.close()
+    const child = desktop.process()
+    if (child.exitCode === null) {
+      child.kill('SIGKILL')
+      await new Promise<void>((resolve) => child.once('exit', () => resolve()))
+    }
   }
 
   try {
