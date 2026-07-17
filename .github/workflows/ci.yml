@@ -42,7 +42,7 @@ jobs:
         working-directory: neoanki-tts
       - run: npm run build
         working-directory: neoanki-tts
-      - run: npm run desktop:prepare
+      - run: npm run build && npm run desktop:prepare
         working-directory: neo-anki
       - if: runner.os == 'Linux'
         run: xvfb-run --auto-servernum npm run test:desktop
