@@ -23,7 +23,11 @@ jobs:
         with:
           node-version: 22
           cache: npm
-          cache-dependency-path: neoanki-tts/package-lock.json
+          cache-dependency-path: |
+            neoanki-tts/package-lock.json
+            neo-anki/package-lock.json
+      - run: npm ci && npm run extension:sdk
+        working-directory: neo-anki
       - run: npm ci
         working-directory: neoanki-tts
       - run: npm test
