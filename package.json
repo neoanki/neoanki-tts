@@ -1,7 +1,7 @@
 {
   "name": "@neoanki/tts",
-  "version": "0.1.0",
-  "description": "System text-to-speech for Neo Anki, built only with the public extension SDK.",
+  "version": "1.0.0",
+  "description": "Full provider-based text-to-speech, batch generation, and review audio for Neo Anki.",
   "license": "MIT",
   "type": "module",
   "private": true,
@@ -12,6 +12,7 @@
     "build": "neo-anki-extension build",
     "check": "neo-anki-extension check",
     "test": "vitest run",
+    "test:desktop": "playwright test --config=playwright.config.ts",
     "typecheck": "tsc --noEmit"
   },
   "dependencies": {
@@ -24,6 +25,7 @@
     "@testing-library/user-event": "^14.6.1",
     "@types/react": "^19.0.0",
     "@types/react-dom": "^19.0.0",
+    "@playwright/test": "^1.61.1",
     "jsdom": "^29.1.0",
     "typescript": "~5.7.2",
     "vitest": "^4.1.0"

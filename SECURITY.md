@@ -1,5 +1,12 @@
 # Security policy
 
-Report vulnerabilities privately through GitHub Security Advisories for this repository. Do not include real API keys or personal study content in a report.
+Report vulnerabilities privately through GitHub Security Advisories for this repository. Never include a real API key, generated private audio, or personal study content in a report.
 
-NeoAnki TTS makes no direct network requests and requests only Settings-panel and Review-tool capabilities. System voices may be implemented by the operating system as online services; users control those voices through their OS settings.
+NeoAnki TTS uses the public Neo Anki host for two privileged operations:
+
+- API keys are encrypted by the operating system credential service.
+- HTTPS requests are limited to the domains declared in `manifest.json`.
+
+Keys are never intentionally written to local storage, workspace data, diagnostics, generated filenames, or logs. Study text is sent only to the provider configured for its matching track. Generated audio becomes ordinary workspace media and is included in workspace backups and enabled sync transports.
+
+The extension package is open source and fingerprinted by Neo Anki at installation. A fingerprint identifies exact bytes; it is not publisher authentication.

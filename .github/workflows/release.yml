@@ -31,6 +31,10 @@ jobs:
         working-directory: neoanki-tts
       - run: npm test && npm run typecheck && npm run check && npm run build
         working-directory: neoanki-tts
+      - run: npm run desktop:prepare
+        working-directory: neo-anki
+      - run: npm run test:desktop
+        working-directory: neoanki-tts
       - name: Create checksums
         run: sha256sum build/*.neoanki-extension > build/SHA256SUMS.txt
         working-directory: neoanki-tts

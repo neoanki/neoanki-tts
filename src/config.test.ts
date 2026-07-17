@@ -1,22 +1,32 @@
-import { CONFIG_STORAGE_KEY, DEFAULT_CONFIG, loadConfig, normalizeConfig, saveConfig } from './config.js'
+import { CONFIG_STORAGE_KEY, DEFAULT_CONFIG, loadConfig, normalizeConfig, profileMatches, saveConfig } from './config.js'
 
 describe('TTS configuration', () => {
-  it('uses safe defaults for missing or damaged data', () => {
-    expect(loadConfig()).toEqual(DEFAULT_CONFIG)
-    localStorage.setItem(CONFIG_STORAGE_KEY, '{bad')
-    expect(loadConfig()).toEqual(DEFAULT_CONFIG)
+  it('starts with a two-sided language-learning profile', () => {
+    const config = loadConfig()
+    expect(config.profiles[0]?.tracks.map((track) => track.side)).toEqual(['prompt', 'answer'])
+    expect(config.profiles[0]?.tracks.every((track) => track.provider === 'system')).toBe(true)
   })
 
-  it('clamps speech controls to supported browser ranges', () => {
-    expect(normalizeConfig({ rate: 99, pitch: -2, volume: 2 })).toMatchObject({ rate: 2, pitch: 0.5, volume: 1 })
+  it('normalizes unsafe values without discarding valid profiles', () => {
+    const config = normalizeConfig({ batchConcurrency: 99, batchRetries: -4, profiles: [{ id: 'x', name: 'Spanish', enabled: true, tracks: [{ id: 'a', side: 'answer', source: 'answer', speed: 99, provider: 'openai', voiceMode: 'priority', fallbacks: [{ provider: 'google', voice: 'es', model: '' }] }] }] })
+    expect(config.batchConcurrency).toBe(5)
+    expect(config.batchRetries).toBe(0)
+    expect(config.profiles[0]?.tracks[0]).toMatchObject({ side: 'answer', speed: 2, provider: 'openai', voiceMode: 'priority' })
+    expect(config.profiles[0]?.tracks[0]?.fallbacks[0]?.provider).toBe('google')
   })
 
-  it('persists normalized settings and announces the change', () => {
-    const listener = vi.fn()
-    window.addEventListener('neoanki-tts:config-changed', listener)
-    saveConfig({ ...DEFAULT_CONFIG, rate: 1.25 })
-    expect(JSON.parse(localStorage.getItem(CONFIG_STORAGE_KEY)!)).toMatchObject({ rate: 1.25 })
+  it('persists normalized configuration and announces changes', () => {
+    const listener = vi.fn(); window.addEventListener('neoanki-tts:config-changed', listener)
+    const saved = saveConfig({ ...DEFAULT_CONFIG, batchConcurrency: 4 })
+    expect(JSON.parse(localStorage.getItem(CONFIG_STORAGE_KEY)!)).toMatchObject({ batchConcurrency: 4 })
+    expect(saved.batchConcurrency).toBe(4)
     expect(listener).toHaveBeenCalledOnce()
-    window.removeEventListener('neoanki-tts:config-changed', listener)
+  })
+
+  it('matches collection and required tag rules', () => {
+    const profile = { ...DEFAULT_CONFIG.profiles[0]!, match: { collections: ['Spanish'], tags: ['audio', 'verb'] } }
+    expect(profileMatches(profile, { collection: 'Spanish', tags: ['verb', 'audio', 'a1'] })).toBe(true)
+    expect(profileMatches(profile, { collection: 'Spanish', tags: ['audio'] })).toBe(false)
+    expect(profileMatches(profile, { collection: 'Japanese', tags: ['verb', 'audio'] })).toBe(false)
   })
 })
