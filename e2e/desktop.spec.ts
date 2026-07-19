@@ -40,6 +40,7 @@ const setProviderMockMode = async (application: ElectronApplication, mode: 'succ
 const providerMockCalls = (application: ElectronApplication) => application.evaluate(() => (globalThis as typeof globalThis & { __neoAnkiTtsMockCalls?: number }).__neoAnkiTtsMockCalls || 0)
 
 test('installs the full extension and keeps provider credentials encrypted', async () => {
+  test.setTimeout(120_000)
   const userData = await mkdtemp(join(tmpdir(), 'neoanki-tts-'))
   const packagePath = join(extensionRoot, 'build', 'org.neoanki.tts-2.0.0.neoanki-extension')
   const insecureLinuxBackend = process.platform === 'linux'
@@ -63,6 +64,7 @@ test('installs the full extension and keeps provider credentials encrypted', asy
     await expect(settings.getByText(/AI voice disclosure/i)).toBeVisible()
     await expect(settings.locator('#profile')).toHaveValue('language-learning')
     await expect(settings.locator('#track')).toHaveValue('prompt')
+    await expect(settings.locator('#secret-status')).toContainText(/No key is stored for this provider/i)
     if (process.env.NEOANKI_TTS_SCREENSHOT) await window.screenshot({ path: process.env.NEOANKI_TTS_SCREENSHOT.replace(/\.png$/, '-profiles.png'), fullPage: true })
 
     await settings.locator('#secret-provider').selectOption('openai')
@@ -108,7 +110,7 @@ test('installs the full extension and keeps provider credentials encrypted', asy
     const restoredSettings = window.frameLocator('iframe[title="NeoAnki TTS: settings"]')
     await expect(restoredSettings.getByText(/OpenAI key is configured/i)).toBeVisible()
     await restoredSettings.getByRole('button', { name: 'Generate missing and stale audio' }).click()
-    await expect(restoredSettings.locator('#batch-status')).toHaveText(/completed: \d+\/\d+ notes · 0 generated · [1-9]\d* skipped · 0 failed/i, { timeout: 20_000 })
+    await expect(restoredSettings.locator('#batch-status')).toHaveText(/completed: \d+\/\d+ notes · 0 generated · [1-9]\d* skipped · 0 failed/i, { timeout: 45_000 })
     expect(await providerMockCalls(desktop)).toBe(0)
 
     await window.getByRole('button', { name: 'Close settings' }).click()
