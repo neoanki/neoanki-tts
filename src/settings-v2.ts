@@ -84,7 +84,15 @@ void createSandboxedUiClient().then(async (client) => {
     catch (error) { byId('status').textContent = error instanceof Error ? error.message : 'Save failed.' }
     finally { setConfigMutationBusy(false) }
   }
-  const refreshSecret = async () => { const provider = select('secret-provider').value; const state = await call<{ configured: boolean }>('secret.status', { provider }); byId('secret-status').textContent = state.configured ? `${providerNames[provider as ProviderId]} key is configured on this device.` : 'No key is stored for this provider.' }
+  const refreshSecret = async () => {
+    const provider = select('secret-provider').value
+    try {
+      const state = await call<{ configured: boolean }>('secret.status', { provider })
+      byId('secret-status').textContent = state.configured ? `${providerNames[provider as ProviderId]} key is configured on this device.` : 'No key is stored for this provider.'
+    } catch (error) {
+      byId('secret-status').textContent = error instanceof Error ? error.message : 'Credential status is unavailable.'
+    }
+  }
   select('secret-provider').onchange = () => void refreshSecret(); await refreshSecret()
   byId('save-secret').onclick = async () => { try { await call('secret.set', { provider: select('secret-provider').value, value: input('secret').value }); input('secret').value = ''; await refreshSecret() } catch (error) { byId('secret-status').textContent = error instanceof Error ? error.message : 'Credential save failed.' } }
   byId('delete-secret').onclick = async () => { try { await call('secret.delete', { provider: select('secret-provider').value }); input('secret').value = ''; await refreshSecret() } catch (error) { byId('secret-status').textContent = error instanceof Error ? error.message : 'Credential deletion failed.' } }
