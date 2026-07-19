@@ -46,6 +46,7 @@ export interface TtsProfile {
   id: string
   name: string
   enabled: boolean
+  priority: number
   match: MatchRules
   processing: ProcessingSettings
   tracks: TtsTrack[]
@@ -96,4 +97,34 @@ export interface SynthesisResult {
   audioBase64: string
   mimeType: string
   extension: string
+}
+
+export interface TtsKnowledgeItem {
+  id: string
+  prompt: string
+  answer: string
+  context: string
+  collection: string
+  tags: string[]
+  mediaIds: string[]
+  extensionData?: Record<string, unknown>
+  createdAt: string
+  updatedAt: string
+}
+
+export interface TtsMediaAsset {
+  id: string
+  filename: string
+  mimeType: string
+  dataUrl: string
+  byteLength: number
+  hash: string
+  altText: string
+  createdAt: string
+  updatedAt: string
+}
+
+export interface TtsProviderHost {
+  network: { fetch(request: { url: string; method?: 'GET' | 'POST' | 'PUT' | 'PATCH' | 'DELETE'; headers?: Record<string, string>; bodyBase64?: string; timeoutMs?: number }): Promise<{ status: number; statusText: string; headers: Record<string, string>; bodyBase64: string }> }
+  secrets: { get(key: string): Promise<string | null | undefined> }
 }

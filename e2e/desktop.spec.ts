@@ -1,4 +1,4 @@
-import { expect, test, _electron as electron } from '@playwright/test'
+import { expect, test, _electron as electron, type ElectronApplication } from '@playwright/test'
 import { createRequire } from 'node:module'
 import { mkdtemp, readFile, rm } from 'node:fs/promises'
 import { tmpdir } from 'node:os'
@@ -11,46 +11,137 @@ const coreRoot = resolve(extensionRoot, '..', 'neo-anki')
 const require = createRequire(import.meta.url)
 const electronExecutable = require(join(coreRoot, 'node_modules', 'electron')) as string
 
+const registerProviderMock = (application: ElectronApplication, initialMode: 'success' | 'fail' | 'delay' = 'success') => application.evaluate(async ({ session }, mode) => {
+  const state = globalThis as typeof globalThis & { __neoAnkiTtsMockMode?: string; __neoAnkiTtsMockCalls?: number }
+  state.__neoAnkiTtsMockMode = mode; state.__neoAnkiTtsMockCalls = 0
+  await session.defaultSession.protocol.handle('https', async (request) => {
+    const url = new URL(request.url)
+    if (url.hostname !== 'api.openai.com' || url.pathname !== '/v1/audio/speech') return new Response('Unmocked HTTPS request', { status: 502 })
+    state.__neoAnkiTtsMockCalls = (state.__neoAnkiTtsMockCalls || 0) + 1
+    if (state.__neoAnkiTtsMockMode === 'delay') await new Promise((resolve) => setTimeout(resolve, 10_000))
+    if (state.__neoAnkiTtsMockMode === 'fail') return new Response('Provider mock intentionally disabled', { status: 503 })
+    return new Response(new Uint8Array([0x49, 0x44, 0x33, 4, 0, 0, 0, 0, 0, 0]), { status: 200, headers: { 'content-type': 'audio/mpeg' } })
+  })
+}, initialMode)
+
+const setProviderMockMode = async (application: ElectronApplication, mode: 'success' | 'fail' | 'delay') => {
+  let lastError: unknown
+  for (let attempt = 0; attempt < 3; attempt += 1) {
+    try {
+      await application.evaluate((_electron, value) => { (globalThis as typeof globalThis & { __neoAnkiTtsMockMode?: string }).__neoAnkiTtsMockMode = value }, mode)
+      return
+    } catch (error) {
+      lastError = error
+      if (!(error instanceof Error) || !/execution context was destroyed/i.test(error.message)) throw error
+    }
+  }
+  throw lastError
+}
+const providerMockCalls = (application: ElectronApplication) => application.evaluate(() => (globalThis as typeof globalThis & { __neoAnkiTtsMockCalls?: number }).__neoAnkiTtsMockCalls || 0)
+
 test('installs the full extension and keeps provider credentials encrypted', async () => {
   const userData = await mkdtemp(join(tmpdir(), 'neoanki-tts-'))
-  const packagePath = join(extensionRoot, 'build', 'org.neoanki.tts-1.0.0.neoanki-extension')
+  const packagePath = join(extensionRoot, 'build', 'org.neoanki.tts-2.0.0.neoanki-extension')
   const insecureLinuxBackend = process.platform === 'linux'
-  const desktop = await electron.launch({
+  let desktop = await electron.launch({
     executablePath: electronExecutable,
     args: [...(insecureLinuxBackend ? ['--password-store=basic'] : []), coreRoot, `--install-extension=${packagePath}`],
     env: { ...process.env, NEO_ANKI_USER_DATA_DIR: userData, NEO_ANKI_TEST_ALLOW_MULTIPLE_INSTANCES: '1' },
   })
   try {
-    const window = await desktop.firstWindow()
+    let window = await desktop.firstWindow()
+    await registerProviderMock(desktop)
+    const rendererErrors: string[] = []
+    window.on('console', (message) => { if (message.type() === 'error') rendererErrors.push(message.text()) })
+    window.on('pageerror', (error) => rendererErrors.push(error.message))
+    await window.getByRole('button', { name: /create a fresh workspace/i }).click()
     await window.getByRole('button', { name: /30 minutes/i }).click()
     await window.getByRole('button', { name: /build my first plan/i }).click()
     await window.getByRole('button', { name: 'Settings', exact: true }).click()
-    await expect(window.getByRole('heading', { name: 'NeoAnki TTS' })).toBeVisible()
-    await expect(window.getByRole('tab', { name: 'Profiles & tracks' })).toBeVisible()
-    await expect(window.getByRole('tab', { name: 'Providers' })).toBeVisible()
-    await expect(window.getByRole('tab', { name: 'Generate' })).toBeVisible()
-
-    await window.getByRole('tab', { name: 'Profiles & tracks' }).click()
-    await expect(window.locator('.tts-track')).toHaveCount(2)
-    await expect(window.getByText(/generate several sides and languages in one job/i)).toBeVisible()
+    const settings = window.frameLocator('iframe[title="NeoAnki TTS: settings"]')
+    await expect(settings.getByRole('heading', { name: 'NeoAnki TTS' })).toBeVisible()
+    await expect(settings.getByText(/AI voice disclosure/i)).toBeVisible()
+    await expect(settings.locator('#profile')).toHaveValue('language-learning')
+    await expect(settings.locator('#track')).toHaveValue('prompt')
     if (process.env.NEOANKI_TTS_SCREENSHOT) await window.screenshot({ path: process.env.NEOANKI_TTS_SCREENSHOT.replace(/\.png$/, '-profiles.png'), fullPage: true })
 
-    await window.getByRole('tab', { name: 'Providers' }).click()
-    const openAi = window.locator('.tts-card').filter({ has: window.getByRole('heading', { name: 'OpenAI' }) })
-    await openAi.getByLabel('API key').fill('local-test-key-not-real')
-    await openAi.getByRole('button', { name: 'Save key' }).click()
+    await settings.locator('#secret-provider').selectOption('openai')
+    await settings.locator('#secret').fill('local-test-key-not-real')
+    await settings.getByRole('button', { name: 'Save key' }).click()
     if (insecureLinuxBackend) {
-      await expect(window.getByText(/secure OS credential storage is unavailable/i)).toBeVisible()
-      await expect(openAi.getByText('Not configured')).toBeVisible()
+      await expect(settings.getByText(/secure OS credential storage is unavailable/i)).toBeVisible()
     } else {
-      await expect(window.getByText('OpenAI credentials saved securely.')).toBeVisible()
-      await expect(openAi.getByText('Configured')).toBeVisible()
+      await expect(settings.getByText(/OpenAI key is configured/i)).toBeVisible()
     }
-
-    await window.getByRole('tab', { name: 'Generate' }).click()
-    await expect(window.getByText(/26 matching items/i)).toBeVisible()
-    await expect(window.getByText(/no cloud track in “Generated & synced” mode/i)).toBeVisible()
+    if (insecureLinuxBackend) {
+      await settings.getByRole('button', { name: 'Save synchronized settings' }).click()
+      await expect(settings.getByText(/Settings saved to the encrypted workspace/i)).toBeVisible()
+      expect(rendererErrors).toEqual([])
+    } else {
+    await settings.locator('#provider').selectOption('openai')
+    await settings.locator('#mode').selectOption('generated')
+    await settings.locator('#voice').fill('coral')
+    await expect(settings.locator('#provider-disclosure')).toContainText(/processed prompt text is sent to OpenAI using model/i)
+    await expect(settings.locator('#provider-disclosure a')).toHaveAttribute('href', /platform\.openai\.com/)
+    await expect(settings.locator('#overlaps')).toContainText(/No other profile can match/i)
+    await settings.getByRole('button', { name: 'Save synchronized settings' }).click()
+    await expect(settings.getByText(/Settings saved to the encrypted workspace/i)).toBeVisible()
+    await settings.getByRole('button', { name: 'Generate missing and stale audio' }).click()
+    await expect(settings.locator('#batch-status')).toHaveText(/completed: \d+\/\d+ notes · [1-9]\d* generated · \d+ skipped · 0 failed/i, { timeout: 20_000 })
+    expect(await providerMockCalls(desktop)).toBeGreaterThan(0)
+    const persisted = await window.evaluate(async () => {
+      const document = await window.neoAnkiDesktop!.loadWorkspaceV4Document()
+      return { media: document.workspace.media.length, records: document.workspace.extensionRecords.filter((value) => value.extensionId === 'org.neoanki.tts').length }
+    })
+    expect(persisted.media).toBeGreaterThan(0); expect(persisted.records).toBeGreaterThan(0)
+    expect(rendererErrors).toEqual([])
     if (process.env.NEOANKI_TTS_SCREENSHOT) await window.screenshot({ path: process.env.NEOANKI_TTS_SCREENSHOT, fullPage: true })
+
+    await desktop.close()
+    desktop = await electron.launch({ executablePath: electronExecutable, args: [...(insecureLinuxBackend ? ['--password-store=basic'] : []), coreRoot], env: { ...process.env, NEO_ANKI_USER_DATA_DIR: userData, NEO_ANKI_TEST_ALLOW_MULTIPLE_INSTANCES: '1' } })
+    window = await desktop.firstWindow(); await registerProviderMock(desktop, 'fail')
+    await window.addInitScript(() => {
+      Object.defineProperty(HTMLMediaElement.prototype, 'play', { configurable: true, value() { document.documentElement.dataset.neoAnkiTestPlayed = (this as HTMLMediaElement).src; setTimeout(() => this.dispatchEvent(new Event('ended')), 10); return Promise.resolve() } })
+      Object.defineProperty(HTMLMediaElement.prototype, 'pause', { configurable: true, value() {} })
+    })
+    await window.getByRole('button', { name: 'Settings', exact: true }).click()
+    const restoredSettings = window.frameLocator('iframe[title="NeoAnki TTS: settings"]')
+    await expect(restoredSettings.getByText(/OpenAI key is configured/i)).toBeVisible()
+    await restoredSettings.getByRole('button', { name: 'Generate missing and stale audio' }).click()
+    await expect(restoredSettings.locator('#batch-status')).toHaveText(/completed: \d+\/\d+ notes · 0 generated · [1-9]\d* skipped · 0 failed/i, { timeout: 20_000 })
+    expect(await providerMockCalls(desktop)).toBe(0)
+
+    await window.getByRole('button', { name: 'Close settings' }).click()
+    await window.getByRole('button', { name: 'Today' }).first().click()
+    await window.locator('button.study-button').click()
+    const reviewFrame = window.locator('iframe[title="NeoAnki TTS: review"]')
+    await expect(reviewFrame).toBeVisible()
+    await reviewFrame.contentFrame().locator('html').evaluate(() => {
+      Object.defineProperty(HTMLMediaElement.prototype, 'play', { configurable: true, value() { document.documentElement.dataset.neoAnkiTestPlayed = (this as HTMLMediaElement).src; setTimeout(() => this.dispatchEvent(new Event('ended')), 10); return Promise.resolve() } })
+      Object.defineProperty(HTMLMediaElement.prototype, 'pause', { configurable: true, value() {} })
+    })
+    await reviewFrame.contentFrame().getByRole('button', { name: 'Play TTS audio' }).click()
+    await expect.poll(async () => `${await reviewFrame.contentFrame().locator('html').getAttribute('data-neo-anki-test-played')}|${await reviewFrame.contentFrame().locator('.message').textContent()}`).toMatch(/^neoanki-media:\/\/asset\//)
+
+    await window.getByRole('button', { name: 'End session' }).click()
+    await window.getByRole('button', { name: 'Settings', exact: true }).click()
+    const updatedSettings = window.frameLocator('iframe[title="NeoAnki TTS: settings"]')
+    await updatedSettings.locator('#speed').fill('1.1')
+    await updatedSettings.getByRole('button', { name: 'Save synchronized settings' }).click()
+    await expect(updatedSettings.getByText(/Settings saved to the encrypted workspace/i)).toBeVisible()
+    await setProviderMockMode(desktop, 'success')
+    await updatedSettings.getByRole('button', { name: 'Generate missing and stale audio' }).click()
+    await expect(updatedSettings.locator('#batch-status')).toHaveText(/completed: \d+\/\d+ notes · [1-9]\d* generated · \d+ skipped · 0 failed/i, { timeout: 20_000 })
+
+    await updatedSettings.locator('#speed').fill('1.2')
+    await updatedSettings.getByRole('button', { name: 'Save synchronized settings' }).click()
+    await expect(updatedSettings.getByText(/Settings saved to the encrypted workspace/i)).toBeVisible()
+    await setProviderMockMode(desktop, 'delay')
+    await updatedSettings.getByRole('button', { name: 'Generate missing and stale audio' }).click()
+    await expect(updatedSettings.locator('#batch-status')).toContainText('running:')
+    await updatedSettings.getByRole('button', { name: 'Stop' }).click()
+    await expect(updatedSettings.locator('#batch-status')).toContainText('cancelled:', { timeout: 15_000 })
+    }
   } finally {
     const child = desktop.process()
     if (child.exitCode === null) {

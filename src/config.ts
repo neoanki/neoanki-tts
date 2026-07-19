@@ -22,6 +22,7 @@ export const DEFAULT_PROFILE: TtsProfile = {
   id: 'language-learning',
   name: 'Language learning',
   enabled: true,
+  priority: 0,
   match: { collections: [], tags: [] },
   processing: { ...DEFAULT_PROCESSING },
   tracks: [
@@ -86,7 +87,7 @@ const normalizeTrack = (value: unknown, index: number): TtsTrack => {
 const normalizeProfile = (value: unknown, index: number): TtsProfile => {
   const input = value && typeof value === 'object' ? value as Partial<TtsProfile> : {}
   return {
-    id: string(input.id, `profile-${index}`), name: string(input.name, `Profile ${index + 1}`), enabled: boolean(input.enabled, true),
+    id: string(input.id, `profile-${index}`), name: string(input.name, `Profile ${index + 1}`), enabled: boolean(input.enabled, true), priority: number(input.priority, 0, -1000, 1000),
     match: {
       collections: Array.isArray(input.match?.collections) ? input.match.collections.filter((item): item is string => typeof item === 'string') : [],
       tags: Array.isArray(input.match?.tags) ? input.match.tags.filter((item): item is string => typeof item === 'string') : [],
@@ -126,3 +127,10 @@ export const saveConfig = (value: TtsConfig) => {
 export const profileMatches = (profile: TtsProfile, item: { collection: string; tags: string[] }) => profile.enabled
   && (!profile.match.collections.length || profile.match.collections.includes(item.collection))
   && (!profile.match.tags.length || profile.match.tags.every((tag) => item.tags.includes(tag)))
+
+export const selectMatchingProfile = (profiles: TtsProfile[], item: { collection: string; tags: string[] }) => profiles
+  .filter((profile) => profileMatches(profile, item))
+  .sort((left, right) => Number(!left.match.collections.length && !left.match.tags.length) - Number(!right.match.collections.length && !right.match.tags.length)
+    || right.priority - left.priority
+    || (right.match.collections.length + right.match.tags.length) - (left.match.collections.length + left.match.tags.length)
+    || left.name.localeCompare(right.name))[0]

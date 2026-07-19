@@ -1,5 +1,3 @@
-import '@testing-library/jest-dom/vitest'
-
 const storage = new Map<string, string>()
 Object.defineProperty(globalThis, 'localStorage', { configurable: true, value: {
   getItem: (key: string) => storage.get(key) ?? null,

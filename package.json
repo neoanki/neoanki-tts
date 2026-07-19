@@ -1,31 +1,33 @@
 {
   "name": "@neoanki/tts",
-  "version": "1.0.0",
+  "version": "2.0.0",
   "description": "Full provider-based text-to-speech, batch generation, and review audio for Neo Anki.",
   "license": "MIT",
   "type": "module",
   "private": true,
   "neoAnki": {
-    "entry": "src/index.tsx"
+    "workerEntry": "src/worker.ts",
+    "uiEntries": {
+      "settings": "src/settings-v2.ts",
+      "review": "src/review-v2.ts"
+    },
+    "signingKey": "development/test-ed25519-private.pem",
+    "coreRef": "08abef4294b9558ee02878d21bc397af94113a5b"
   },
   "scripts": {
     "build": "neo-anki-extension build",
     "check": "neo-anki-extension check",
     "test": "vitest run",
+    "test:coverage": "vitest run --coverage",
     "test:desktop": "playwright test --config=playwright.config.ts",
     "typecheck": "tsc --noEmit"
   },
   "dependencies": {
-    "@neo-anki/extension-sdk": "file:../neo-anki/packages/extension-sdk",
-    "react": "^19.0.0"
+    "@neo-anki/extension-sdk": "file:../neo-anki/packages/extension-sdk"
   },
   "devDependencies": {
-    "@testing-library/jest-dom": "^6.9.1",
-    "@testing-library/react": "^16.3.2",
-    "@testing-library/user-event": "^14.6.1",
-    "@types/react": "^19.0.0",
-    "@types/react-dom": "^19.0.0",
     "@playwright/test": "^1.61.1",
+    "@vitest/coverage-v8": "^4.1.10",
     "jsdom": "^29.1.0",
     "typescript": "~5.7.2",
     "vitest": "^4.1.0"

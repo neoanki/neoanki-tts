@@ -1,4 +1,4 @@
-import { CONFIG_STORAGE_KEY, DEFAULT_CONFIG, loadConfig, normalizeConfig, profileMatches, saveConfig } from './config.js'
+import { CONFIG_STORAGE_KEY, DEFAULT_CONFIG, loadConfig, normalizeConfig, profileMatches, saveConfig, selectMatchingProfile } from './config.js'
 
 describe('TTS configuration', () => {
   it('starts with a two-sided language-learning profile', () => {
@@ -28,5 +28,11 @@ describe('TTS configuration', () => {
     expect(profileMatches(profile, { collection: 'Spanish', tags: ['verb', 'audio', 'a1'] })).toBe(true)
     expect(profileMatches(profile, { collection: 'Spanish', tags: ['audio'] })).toBe(false)
     expect(profileMatches(profile, { collection: 'Japanese', tags: ['verb', 'audio'] })).toBe(false)
+  })
+
+  it('selects a specific higher-priority profile before a catch-all profile', () => {
+    const fallback = structuredClone(DEFAULT_CONFIG.profiles[0]!)
+    const specific = { ...structuredClone(fallback), id: 'specific', name: 'Spanish', priority: 10, match: { collections: ['Spanish'], tags: [] } }
+    expect(selectMatchingProfile([fallback, specific], { collection: 'Spanish', tags: [] })?.id).toBe('specific')
   })
 })

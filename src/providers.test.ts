@@ -1,9 +1,10 @@
-import type { ExtensionHost } from '@neo-anki/extension-sdk'
 import { DEFAULT_CONFIG, DEFAULT_PROFILE } from './config.js'
 import { listVoices, synthesizeWithFallback } from './providers.js'
+import type { TtsProviderHost } from './types.js'
 
 const encode = (value: string) => btoa(value)
-const host = (fetch: ExtensionHost['network']['fetch'], secrets: Record<string, string> = { 'openai.api-key': 'secret', 'google.api-key': 'google' }): ExtensionHost => ({ platform: 'desktop', network: { fetch }, secrets: { has: vi.fn(async (key) => Boolean(secrets[key])), get: vi.fn(async (key) => secrets[key] || null), set: vi.fn(), delete: vi.fn() } })
+const mp3 = btoa('ID3fixture-audio')
+const host = (fetch: TtsProviderHost['network']['fetch'], secrets: Record<string, string> = { 'openai.api-key': 'secret', 'google.api-key': 'google' }): TtsProviderHost => ({ network: { fetch }, secrets: { get: vi.fn(async (key) => secrets[key] || null) } })
 
 describe('provider adapters', () => {
   it('lists OpenAI voices without making a network request', async () => {
@@ -14,7 +15,7 @@ describe('provider adapters', () => {
   })
 
   it('sends secrets in headers and returns provider audio', async () => {
-    const fetch = vi.fn(async () => ({ status: 200, statusText: 'OK', headers: { 'content-type': 'audio/mpeg' }, bodyBase64: 'YXVkaW8=' }))
+    const fetch = vi.fn(async () => ({ status: 200, statusText: 'OK', headers: { 'content-type': 'audio/mpeg' }, bodyBase64: mp3 }))
     const track = { ...DEFAULT_PROFILE.tracks[0]!, provider: 'openai' as const, voice: 'coral', model: 'gpt-4o-mini-tts' }
     const result = await synthesizeWithFallback(host(fetch), track, 'Hola', DEFAULT_CONFIG.providers)
     expect(result.mimeType).toBe('audio/mpeg')
@@ -24,10 +25,10 @@ describe('provider adapters', () => {
   it('uses priority fallbacks after a provider error', async () => {
     const fetch = vi.fn(async (request: { url: string }) => request.url.includes('openai')
       ? { status: 429, statusText: 'Rate limited', headers: {}, bodyBase64: encode(JSON.stringify({ error: { message: 'slow down' } })) }
-      : { status: 200, statusText: 'OK', headers: {}, bodyBase64: encode(JSON.stringify({ audioContent: 'YXVkaW8=' })) })
+      : { status: 200, statusText: 'OK', headers: {}, bodyBase64: encode(JSON.stringify({ audioContent: mp3 })) })
     const track = { ...DEFAULT_PROFILE.tracks[0]!, provider: 'openai' as const, voiceMode: 'priority' as const, fallbacks: [{ id: 'g', provider: 'google' as const, voice: '', model: '' }] }
     const result = await synthesizeWithFallback(host(fetch), track, 'Hola', DEFAULT_CONFIG.providers)
-    expect(result.audioBase64).toBe('YXVkaW8=')
+    expect(result.audioBase64).toBe(mp3)
     expect(fetch).toHaveBeenCalledTimes(2)
   })
 })

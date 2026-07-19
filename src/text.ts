@@ -1,10 +1,9 @@
-import type { KnowledgeItem } from '@neo-anki/extension-sdk'
-import type { ProcessingSettings, TtsTrack } from './types.js'
+import type { ProcessingSettings, TtsKnowledgeItem, TtsTrack } from './types.js'
 
 const CLOZE = /\{\{c\d+::([^{}]*?)(?:::[^{}]*?)?\}\}/gi
 const SOUND = /\[sound:[^\]]+\]/gi
 
-export const renderSource = (track: TtsTrack, item: Pick<KnowledgeItem, 'prompt' | 'answer' | 'context' | 'collection' | 'tags'>) => {
+export const renderSource = (track: TtsTrack, item: Pick<TtsKnowledgeItem, 'prompt' | 'answer' | 'context' | 'collection' | 'tags'>) => {
   if (track.source !== 'template') return item[track.source]
   return track.template.replace(/\{\{\s*(prompt|answer|context|collection|tags)\s*\}\}/gi, (_match, key: string) => key === 'tags' ? item.tags.join(', ') : String(item[key.toLowerCase() as keyof typeof item] || ''))
 }
@@ -15,12 +14,13 @@ const stripHtml = (value: string) => {
 }
 
 export const processText = (value: string, settings: ProcessingSettings) => {
-  let text = value
+  let text = value.slice(0, 20_000)
   if (settings.removeSoundTags) text = text.replace(SOUND, ' ')
   if (settings.unwrapCloze) for (let pass = 0; pass < 8; pass += 1) text = text.replace(CLOZE, '$1')
   for (const rule of settings.replacements) {
     if (!rule.find) continue
     try {
+      if (rule.find.length > 256 || (rule.regex && /\([^)]*[+*][^)]*\)[+*{]|(?:\.\*|\.\+).*(?:\.\*|\.\+)/.test(rule.find))) continue
       const expression = rule.regex ? rule.find : rule.find.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')
       text = text.replace(new RegExp(expression, `${rule.caseSensitive ? 'g' : 'gi'}u`), rule.replace)
     } catch { /* Invalid user patterns are ignored until fixed in the editor. */ }
@@ -41,9 +41,14 @@ export const detectLanguage = (text: string) => {
   return 'en-US'
 }
 
-export const textForTrack = (track: TtsTrack, item: KnowledgeItem, settings: ProcessingSettings) => processText(renderSource(track, item), settings)
+export const textForTrack = (track: TtsTrack, item: TtsKnowledgeItem, settings: ProcessingSettings) => processText(renderSource(track, item), settings)
 
 export const stableHash = async (value: string) => {
   const digest = await crypto.subtle.digest('SHA-256', new TextEncoder().encode(value))
+  return Array.from(new Uint8Array(digest), (byte) => byte.toString(16).padStart(2, '0')).join('')
+}
+
+export const stableByteHash = async (bytes: Uint8Array) => {
+  const digest = await crypto.subtle.digest('SHA-256', bytes)
   return Array.from(new Uint8Array(digest), (byte) => byte.toString(16).padStart(2, '0')).join('')
 }
