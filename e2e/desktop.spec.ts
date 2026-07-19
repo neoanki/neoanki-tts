@@ -42,7 +42,7 @@ const providerMockCalls = (application: ElectronApplication) => application.eval
 test('installs the full extension and keeps provider credentials encrypted', async () => {
   test.setTimeout(120_000)
   const userData = await mkdtemp(join(tmpdir(), 'neoanki-tts-'))
-  const packagePath = join(extensionRoot, 'build', 'org.neoanki.tts-2.0.0.neoanki-extension')
+  const packagePath = join(extensionRoot, 'build', 'org.neoanki.tts-2.0.1.neoanki-extension')
   const insecureLinuxBackend = process.platform === 'linux'
   let desktop = await electron.launch({
     executablePath: electronExecutable,

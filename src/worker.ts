@@ -8,7 +8,7 @@ import type { ItemTtsMetadata, ProviderId, TtsConfig, TtsProfile, TtsTrack } fro
 
 const manifest: ExtensionManifestV2 = {
   format: 'neo-anki-extension' as const, schemaVersion: 2 as const, sdkVersion: 2 as const,
-  id: EXTENSION_ID, name: 'NeoAnki TTS', version: '2.0.0', publisher: 'NeoAnki contributors', publisherKey: 'MCowBQYDK2VwAyEAWLuNpqQ/JMUPHMJpwJt8QgjNz2Rfw+LSO6nNcWxPdb8=',
+  id: EXTENSION_ID, name: 'NeoAnki TTS', version: '2.0.1', publisher: 'NeoAnki contributors', publisherKey: 'MCowBQYDK2VwAyEAWLuNpqQ/JMUPHMJpwJt8QgjNz2Rfw+LSO6nNcWxPdb8=',
   permissions: ['content:read', 'content:patch-own', 'media:create', 'network:fetch', 'secrets:device', 'config:sync', 'ui:settings', 'ui:review'],
   networkDomains: ['api.openai.com', 'api.elevenlabs.io', 'texttospeech.googleapis.com', '*.tts.speech.microsoft.com'], workerEntry: 'dist/worker.js',
   uiEntries: [{ id: 'settings', surface: 'settings' as const, entry: 'dist/settings.js' }, { id: 'review', surface: 'review' as const, entry: 'dist/review.js' }],
