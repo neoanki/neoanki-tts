@@ -34,13 +34,15 @@ jobs:
         working-directory: neo-anki
       - run: npm ci
         working-directory: neoanki-tts
-      - run: npm test
+      - run: npm run test:coverage
         working-directory: neoanki-tts
       - run: npm run typecheck
         working-directory: neoanki-tts
       - run: npm run check
         working-directory: neoanki-tts
       - run: npm run build
+        working-directory: neoanki-tts
+      - run: npm audit --audit-level=high
         working-directory: neoanki-tts
       - run: npm run build && npm run desktop:prepare
         working-directory: neo-anki

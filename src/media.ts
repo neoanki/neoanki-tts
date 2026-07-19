@@ -1,10 +1,9 @@
-import type { KnowledgeItem, MediaAsset } from '@neo-anki/extension-sdk'
 import { EXTENSION_ID } from './config.js'
-import type { GeneratedTrackMetadata, ItemTtsMetadata } from './types.js'
+import type { GeneratedTrackMetadata, ItemTtsMetadata, TtsKnowledgeItem, TtsMediaAsset } from './types.js'
 
 export const metadataKey = (profileId: string, trackId: string) => `${profileId}:${trackId}`
 
-export const readTtsMetadata = (item: Pick<KnowledgeItem, 'extensionData'>): ItemTtsMetadata => {
+export const readTtsMetadata = (item: Pick<TtsKnowledgeItem, 'extensionData'>): ItemTtsMetadata => {
   const value = item.extensionData?.[EXTENSION_ID]
   if (!value || typeof value !== 'object' || (value as ItemTtsMetadata).version !== 1 || typeof (value as ItemTtsMetadata).tracks !== 'object') return { version: 1, tracks: {} }
   return value as ItemTtsMetadata
@@ -12,11 +11,11 @@ export const readTtsMetadata = (item: Pick<KnowledgeItem, 'extensionData'>): Ite
 
 export interface AttachAudioPayload {
   itemId: string
-  asset: MediaAsset
+  asset: TtsMediaAsset
   metadata: GeneratedTrackMetadata
 }
 
-export const attachGeneratedAudio = (data: { items: KnowledgeItem[]; assets: MediaAsset[] }, payloads: AttachAudioPayload[]) => {
+export const attachGeneratedAudio = (data: { items: TtsKnowledgeItem[]; assets: TtsMediaAsset[] }, payloads: AttachAudioPayload[]) => {
   const byItem = new Map<string, AttachAudioPayload[]>()
   for (const payload of payloads) byItem.set(payload.itemId, [...(byItem.get(payload.itemId) || []), payload])
   const items = data.items.map((item) => {

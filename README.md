@@ -2,7 +2,7 @@
 
 A full text-to-speech studio for Neo Anki. It combines provider-quality cloud voices, free system voices, reusable profiles, batch generation, and offline review playback in an independently installable extension.
 
-NeoAnki TTS uses only the public extension SDK. Its network, credential, UI, review, and content capabilities are available to any extension publisher through the same permission model.
+NeoAnki TTS uses only the public SDK v2 contract. Provider logic runs in an isolated worker; Settings and Review run in sandboxed iframes. The host mediates scoped content reads, namespaced metadata patches, media creation, network calls, synchronized non-secret configuration, and device-local credentials.
 
 ## Features
 
@@ -12,15 +12,13 @@ NeoAnki TTS uses only the public extension SDK. Its network, credential, UI, rev
 - Profiles selected automatically by collection and required tags.
 - Any number of prompt/answer tracks in one profile. A single job can generate Spanish prompt audio and English answer audio together.
 - Single, priority-fallback, and random voice strategies, including cross-provider fallbacks.
-- Real-time tracks, generated-and-synced tracks, or both in one profile.
+- Real-time tracks, generated-and-cached tracks, or both in one profile.
 - Custom source templates using `{{prompt}}`, `{{answer}}`, `{{context}}`, `{{collection}}`, and `{{tags}}`.
-- Configuration export/import for moving profiles and text rules between devices without exporting API keys.
 - HTML cleanup, cloze unwrapping, existing sound-tag removal, optional bracket removal, and ordered literal or regular-expression pronunciation rules.
-- Preview before generation.
-- Concurrent batch generation with retries, stoppable progress, per-item errors, and incremental transaction commits.
+- Bounded batch generation with retries, active-request cancellation, per-track errors, and incremental atomic commits.
 - Deterministic stale detection: changed text, voice, model, language, speed, instructions, provider defaults, or fallback configuration is regenerated; unchanged work is skipped.
 - Content-addressed media deduplication and per-track replacement.
-- Generated audio is stored as normal Neo Anki media, so it works offline and follows workspace backup/sync semantics.
+- Generated audio is stored as verified Neo Anki media, so it works offline and is included in workspace backups. It participates in synchronization when the host’s encrypted sync service is enabled.
 - Automatic and manual playback during review. Missing generated audio can fall back to real-time synthesis.
 
 ## Provider matrix
@@ -37,13 +35,13 @@ Provider use can incur charges from that provider. NeoAnki TTS does not proxy, r
 
 ## Install
 
-1. Download `org.neoanki.tts-1.0.0.neoanki-extension` from the latest release.
+1. Download `org.neoanki.tts-2.0.0.neoanki-extension` from the latest release.
 2. In Neo Anki, open **Settings → Extensions → Install from file**.
-3. Review the declared settings, review, content-transaction, network, and secret-storage capabilities and the exact allowed HTTPS domains.
+3. Review the signed publisher identity, isolated settings/review surfaces, scoped content read and metadata-write capabilities, network access, device-local secret storage, synchronized configuration, and exact allowed HTTPS domains.
 4. Install and reload Neo Anki.
 5. Open **Settings → NeoAnki TTS**.
 
-Start for free with the default two-track system-voice profile. For portable, consistent audio, add a cloud provider key, choose voices under **Profiles & tracks**, preview them, switch tracks to **Generated & synced**, and run **Generate missing & stale**.
+Start for free with the default two-track system-voice profile. For portable, consistent audio, add a cloud provider key, choose a provider and voice under **Profiles and tracks**, switch tracks to **Generated and cached**, and run **Generate missing and stale audio**.
 
 ## How generated audio works
 
@@ -57,7 +55,7 @@ This produces three useful guarantees:
 
 ## Build locally
 
-Until `@neo-anki/extension-sdk` is published to npm, clone this repository beside the main Neo Anki repository:
+Until `@neo-anki/extension-sdk` 2.x is published to npm, clone this repository beside the main Neo Anki repository:
 
 ```text
 projects/
@@ -76,7 +74,9 @@ npm run check
 npm run build
 ```
 
-The installable artifact is written to `build/org.neoanki.tts-1.0.0.neoanki-extension`.
+The installable, Ed25519-signed artifact is written to `build/org.neoanki.tts-2.0.0.neoanki-extension`. The checked-in private key is deliberately a development-only fixture. Production publishers must supply `NEO_ANKI_EXTENSION_SIGNING_KEY` from protected release secrets and publish the matching public key in the manifest.
+
+Tagged releases also verify the exact core/SDK commit declared by `neoAnki.coreRef` and stamp both the TTS source commit and core commit into the signed package provenance. A release fails if either packaged value differs from the checked-out immutable input.
 
 ## Privacy and security
 
@@ -89,7 +89,7 @@ The extension declares these exact network hosts:
 
 The desktop host rejects plain HTTP, undeclared hosts, unsafe headers, oversized requests/responses, and redirects outside the allowlist. API keys are encrypted at rest by Electron’s operating-system-backed `safeStorage`; they are not stored in workspace data, local storage, generated media, diagnostics, or extension packages. On Linux, Secret Service or KWallet is required—the insecure `basic_text` fallback is rejected and no key is written.
 
-Text is sent only to the provider selected by the matching track. Generated audio becomes workspace media and therefore appears in backups and any sync transport the user enables. System voices can be OS-managed online voices; their implementation is controlled by the operating system.
+Text is sent only to the provider and model selected by the matching track, using the user’s own billable provider account. The UI explicitly labels cloud output as AI-generated speech. Credentials are encrypted and device-local; non-secret profiles are stored in the workspace configuration namespace. Generated audio becomes verified workspace media and appears in backups and enabled encrypted sync. System voices can be OS-managed online voices; their implementation is controlled by the operating system.
 
 ## License
 
