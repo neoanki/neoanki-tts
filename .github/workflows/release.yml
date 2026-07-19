@@ -30,7 +30,7 @@ jobs:
           repository: neoanki/neo-anki
           path: neo-anki
           ref: 02c75ab13b339885d3b13f7267aee810579b6c77
-      - uses: actions/setup-node@v4
+      - uses: actions/setup-node@v7
         with:
           node-version: 22
           cache: npm
