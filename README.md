@@ -35,7 +35,7 @@ Provider use can incur charges from that provider. NeoAnki TTS does not proxy, r
 
 ## Install
 
-1. Download `org.neoanki.tts-2.0.1.neoanki-extension` from the latest release.
+1. Download `org.neoanki.tts-2.0.2.neoanki-extension` from the latest release.
 2. In Neo Anki, open **Settings → Extensions → Install from file**.
 3. Review the signed publisher identity, isolated settings/review surfaces, scoped content read and metadata-write capabilities, network access, device-local secret storage, synchronized configuration, and exact allowed HTTPS domains.
 4. Install and reload Neo Anki.
@@ -74,7 +74,7 @@ npm run check
 npm run build
 ```
 
-The installable, Ed25519-signed artifact is written to `build/org.neoanki.tts-2.0.1.neoanki-extension`. The checked-in private key is deliberately a development-only fixture. Production publishers must supply `NEO_ANKI_EXTENSION_SIGNING_KEY` from protected release secrets and publish the matching public key in the manifest.
+The installable, Ed25519-signed artifact is written to `build/org.neoanki.tts-2.0.2.neoanki-extension`. The checked-in private key is deliberately a development-only fixture. Production publishers must supply `NEO_ANKI_EXTENSION_SIGNING_KEY` from protected release secrets and publish the matching public key in the manifest.
 
 Tagged releases also verify the exact core/SDK commit declared by `neoAnki.coreRef` and stamp both the TTS source commit and core commit into the signed package provenance. A release fails if either packaged value differs from the checked-out immutable input.
 

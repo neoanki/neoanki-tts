@@ -1,6 +1,6 @@
 {
   "name": "@neoanki/tts",
-  "version": "2.0.1",
+  "version": "2.0.2",
   "description": "Full provider-based text-to-speech, batch generation, and review audio for Neo Anki.",
   "license": "MIT",
   "type": "module",
@@ -12,7 +12,7 @@
       "review": "src/review-v2.ts"
     },
     "signingKey": "development/test-ed25519-private.pem",
-    "coreRef": "02c75ab13b339885d3b13f7267aee810579b6c77"
+    "coreRef": "fb531af9562d9cda44bae5d0744187bbad1aee47"
   },
   "scripts": {
     "build": "neo-anki-extension build",
