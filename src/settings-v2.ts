@@ -20,6 +20,14 @@ let jobId = ''
 let pollTimer = 0
 let consecutivePollFailures = 0
 let configMutationBusy = false
+const controls = [...root.querySelectorAll<HTMLInputElement | HTMLSelectElement | HTMLButtonElement>('input, select, button')]
+const setInitialized = (initialized: boolean) => {
+  for (const control of controls) control.disabled = !initialized
+  ;(byId('stop-batch') as HTMLButtonElement).disabled = true
+  root.querySelector('main')?.setAttribute('aria-busy', String(!initialized))
+}
+setInitialized(false)
+byId('status').textContent = 'Loading TTS settings…'
 
 const retentionLinks: Partial<Record<ProviderId, string>> = {
   openai: 'https://platform.openai.com/docs/models/default-usage-policies-by-endpoint',
@@ -136,4 +144,9 @@ void createSandboxedUiClient().then(async (client) => {
     catch (error) { byId('batch-status').textContent = error instanceof Error ? error.message : 'Batch cancellation failed.' }
   }
   window.addEventListener('beforeunload', () => window.clearTimeout(pollTimer))
+  setInitialized(true)
+  byId('status').textContent = ''
+}).catch((error) => {
+  root.querySelector('main')?.setAttribute('aria-busy', 'false')
+  byId('status').textContent = error instanceof Error ? `TTS settings could not load: ${error.message}` : 'TTS settings could not load.'
 })
