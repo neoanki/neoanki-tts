@@ -18,7 +18,16 @@ const option = (value: string, label = value) => { const item = document.createE
 let config: TtsConfig
 let jobId = ''
 let pollTimer = 0
+let consecutivePollFailures = 0
 let configMutationBusy = false
+const controls = [...root.querySelectorAll<HTMLInputElement | HTMLSelectElement | HTMLButtonElement>('input, select, button')]
+const setInitialized = (initialized: boolean) => {
+  for (const control of controls) control.disabled = !initialized
+  ;(byId('stop-batch') as HTMLButtonElement).disabled = true
+  root.querySelector('main')?.setAttribute('aria-busy', String(!initialized))
+}
+setInitialized(false)
+byId('status').textContent = 'Loading TTS settings…'
 
 const retentionLinks: Partial<Record<ProviderId, string>> = {
   openai: 'https://platform.openai.com/docs/models/default-usage-policies-by-endpoint',
@@ -96,14 +105,48 @@ void createSandboxedUiClient().then(async (client) => {
   select('secret-provider').onchange = () => void refreshSecret(); await refreshSecret()
   byId('save-secret').onclick = async () => { try { await call('secret.set', { provider: select('secret-provider').value, value: input('secret').value }); input('secret').value = ''; await refreshSecret() } catch (error) { byId('secret-status').textContent = error instanceof Error ? error.message : 'Credential save failed.' } }
   byId('delete-secret').onclick = async () => { try { await call('secret.delete', { provider: select('secret-provider').value }); input('secret').value = ''; await refreshSecret() } catch (error) { byId('secret-status').textContent = error instanceof Error ? error.message : 'Credential deletion failed.' } }
-  const poll = async () => { if (!jobId) return; const job = await call<{ state: string; completed: number; total: number; generated: number; skipped: number; failures: number; error?: string }>('batch.status', { jobId }); byId('batch-status').textContent = `${job.state}: ${job.completed}/${job.total} notes · ${job.generated} generated · ${job.skipped} skipped · ${job.failures} failed${job.error ? ` · last error: ${job.error}` : ''}`; if (job.state === 'running') pollTimer = window.setTimeout(() => void poll(), 500); else { jobId = ''; (byId('start-batch') as HTMLButtonElement).disabled = configMutationBusy; (byId('stop-batch') as HTMLButtonElement).disabled = true } }
+  const finishPolling = () => {
+    jobId = ''
+    consecutivePollFailures = 0
+    ;(byId('start-batch') as HTMLButtonElement).disabled = configMutationBusy
+    ;(byId('stop-batch') as HTMLButtonElement).disabled = true
+  }
+  const poll = async () => {
+    if (!jobId) return
+    try {
+      const job = await call<{ state: string; completed: number; total: number; generated: number; skipped: number; failures: number; error?: string }>('batch.status', { jobId })
+      consecutivePollFailures = 0
+      byId('batch-status').textContent = `${job.state}: ${job.completed}/${job.total} notes · ${job.generated} generated · ${job.skipped} skipped · ${job.failures} failed${job.error ? ` · last error: ${job.error}` : ''}`
+      if (job.state === 'running') pollTimer = window.setTimeout(() => void poll(), 500)
+      else finishPolling()
+    } catch (error) {
+      consecutivePollFailures += 1
+      const message = error instanceof Error ? error.message : 'Batch status is temporarily unavailable.'
+      if (consecutivePollFailures >= 10) {
+        byId('batch-status').textContent = `Status checks failed after ${consecutivePollFailures} attempts: ${message}`
+        finishPolling()
+      } else {
+        byId('batch-status').textContent = `Waiting for batch status (attempt ${consecutivePollFailures + 1} of 10)…`
+        pollTimer = window.setTimeout(() => void poll(), Math.min(2_000, 250 * 2 ** (consecutivePollFailures - 1)))
+      }
+    }
+  }
   byId('start-batch').onclick = async () => {
     if (configMutationBusy || jobId) return
     setConfigMutationBusy(true)
-    try { commitControls(); config = normalizeConfig(await call('config.save', { config })); const job = await call<{ id: string }>('batch.start'); jobId = job.id; (byId('stop-batch') as HTMLButtonElement).disabled = false; void poll() }
+    try { commitControls(); config = normalizeConfig(await call('config.save', { config })); const job = await call<{ id: string }>('batch.start'); jobId = job.id; consecutivePollFailures = 0; (byId('stop-batch') as HTMLButtonElement).disabled = false; void poll() }
     catch (error) { byId('batch-status').textContent = error instanceof Error ? error.message : 'Batch could not start.' }
     finally { setConfigMutationBusy(false) }
   }
-  byId('stop-batch').onclick = async () => { if (jobId) await call('batch.cancel', { jobId }) }
+  byId('stop-batch').onclick = async () => {
+    if (!jobId) return
+    try { await call('batch.cancel', { jobId }) }
+    catch (error) { byId('batch-status').textContent = error instanceof Error ? error.message : 'Batch cancellation failed.' }
+  }
   window.addEventListener('beforeunload', () => window.clearTimeout(pollTimer))
+  setInitialized(true)
+  byId('status').textContent = ''
+}).catch((error) => {
+  root.querySelector('main')?.setAttribute('aria-busy', 'false')
+  byId('status').textContent = error instanceof Error ? `TTS settings could not load: ${error.message}` : 'TTS settings could not load.'
 })

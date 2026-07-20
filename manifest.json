@@ -3,7 +3,7 @@
   "schemaVersion": 2,
   "id": "org.neoanki.tts",
   "name": "NeoAnki TTS",
-  "version": "2.0.1",
+  "version": "2.0.2",
   "sdkVersion": 2,
   "publisher": "NeoAnki contributors",
   "description": "Provider-grade text-to-speech with profiles, batch generation, cached media, and real-time review playback.",
@@ -16,5 +16,5 @@
     { "id": "settings", "surface": "settings", "entry": "dist/settings.js" },
     { "id": "review", "surface": "review", "entry": "dist/review.js" }
   ],
-  "provenance": { "sourceCommit": "4a7e762dd992fee948ed3dcafad98cfcb2411fe2", "coreCommit": "02c75ab13b339885d3b13f7267aee810579b6c77", "buildSystem": "neo-anki-extension-cli" }
+  "provenance": { "sourceCommit": "df52d49ccb2d4b6090f8ce9d4b142def52f5acef", "coreCommit": "fb531af9562d9cda44bae5d0744187bbad1aee47", "buildSystem": "neo-anki-extension-cli" }
 }
