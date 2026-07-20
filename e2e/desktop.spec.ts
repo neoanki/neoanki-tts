@@ -141,7 +141,9 @@ test('installs the full extension and keeps provider credentials encrypted', asy
     await setProviderMockMode(desktop, 'delay')
     await updatedSettings.getByRole('button', { name: 'Generate missing and stale audio' }).click()
     await expect(updatedSettings.locator('#batch-status')).toContainText('running:')
-    await updatedSettings.getByRole('button', { name: 'Stop' }).click()
+    const stopBatch = updatedSettings.getByRole('button', { name: 'Stop' })
+    await expect(stopBatch).toBeEnabled()
+    await stopBatch.dispatchEvent('click')
     await expect(updatedSettings.locator('#batch-status')).toContainText('cancelled:', { timeout: 15_000 })
     }
   } finally {
