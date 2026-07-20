@@ -38,6 +38,11 @@ const setProviderMockMode = async (application: ElectronApplication, mode: 'succ
   throw lastError
 }
 const providerMockCalls = (application: ElectronApplication) => application.evaluate(() => (globalThis as typeof globalThis & { __neoAnkiTtsMockCalls?: number }).__neoAnkiTtsMockCalls || 0)
+const persistedTrack = (window: Awaited<ReturnType<ElectronApplication['firstWindow']>>) => window.evaluate(async () => {
+  const document = await window.neoAnkiDesktop!.loadWorkspaceV4Document()
+  const config = document.clientState.settings.extensionConfig?.['org.neoanki.tts'] as { profiles?: Array<{ tracks?: Array<{ provider?: string; mode?: string; voice?: string; speed?: number }> }> } | undefined
+  return config?.profiles?.[0]?.tracks?.[0] || null
+})
 
 test('installs the full extension and keeps provider credentials encrypted', async () => {
   test.setTimeout(120_000)
@@ -77,7 +82,7 @@ test('installs the full extension and keeps provider credentials encrypted', asy
     }
     if (insecureLinuxBackend) {
       await settings.getByRole('button', { name: 'Save synchronized settings' }).click()
-      await expect(settings.getByText(/Settings saved to the encrypted workspace/i)).toBeVisible({ timeout: 30_000 })
+      await expect.poll(() => persistedTrack(window), { timeout: 30_000 }).not.toBeNull()
       expect(rendererErrors).toEqual([])
     } else {
     await settings.locator('#provider').selectOption('openai')
@@ -87,7 +92,7 @@ test('installs the full extension and keeps provider credentials encrypted', asy
     await expect(settings.locator('#provider-disclosure a')).toHaveAttribute('href', /platform\.openai\.com/)
     await expect(settings.locator('#overlaps')).toContainText(/No other profile can match/i)
     await settings.getByRole('button', { name: 'Save synchronized settings' }).click()
-    await expect(settings.getByText(/Settings saved to the encrypted workspace/i)).toBeVisible({ timeout: 30_000 })
+    await expect.poll(() => persistedTrack(window), { timeout: 30_000 }).toMatchObject({ provider: 'openai', mode: 'generated', voice: 'coral' })
     await settings.getByRole('button', { name: 'Generate missing and stale audio' }).click()
     await expect(settings.locator('#batch-status')).toHaveText(/completed: \d+\/\d+ notes · [1-9]\d* generated · \d+ skipped · 0 failed/i, { timeout: 20_000 })
     expect(await providerMockCalls(desktop)).toBeGreaterThan(0)
@@ -130,14 +135,14 @@ test('installs the full extension and keeps provider credentials encrypted', asy
     const updatedSettings = window.frameLocator('iframe[title="NeoAnki TTS: settings"]')
     await updatedSettings.locator('#speed').fill('1.1')
     await updatedSettings.getByRole('button', { name: 'Save synchronized settings' }).click()
-    await expect(updatedSettings.getByText(/Settings saved to the encrypted workspace/i)).toBeVisible({ timeout: 30_000 })
+    await expect.poll(() => persistedTrack(window), { timeout: 30_000 }).toMatchObject({ speed: 1.1 })
     await setProviderMockMode(desktop, 'success')
     await updatedSettings.getByRole('button', { name: 'Generate missing and stale audio' }).click()
     await expect(updatedSettings.locator('#batch-status')).toHaveText(/completed: \d+\/\d+ notes · [1-9]\d* generated · \d+ skipped · 0 failed/i, { timeout: 20_000 })
 
     await updatedSettings.locator('#speed').fill('1.2')
     await updatedSettings.getByRole('button', { name: 'Save synchronized settings' }).click()
-    await expect(updatedSettings.getByText(/Settings saved to the encrypted workspace/i)).toBeVisible({ timeout: 30_000 })
+    await expect.poll(() => persistedTrack(window), { timeout: 30_000 }).toMatchObject({ speed: 1.2 })
     await setProviderMockMode(desktop, 'delay')
     await updatedSettings.getByRole('button', { name: 'Generate missing and stale audio' }).click()
     await expect(updatedSettings.locator('#batch-status')).toContainText('running:')
