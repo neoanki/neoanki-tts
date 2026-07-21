@@ -29,7 +29,13 @@ jobs:
         with:
           repository: neoanki/neo-anki
           path: neo-anki
-          ref: 7ad6541f1e4a15553d6ffd31c70708ae193691fe
+      - name: Check out the declared immutable core
+        shell: bash
+        run: |
+          declared_core="$(node -p "require('./neoanki-tts/package.json').neoAnki.coreRef")"
+          test -n "$declared_core"
+          git -C neo-anki fetch --depth=1 origin "$declared_core"
+          git -C neo-anki checkout --detach "$declared_core"
       - uses: actions/setup-node@v7
         with:
           node-version: 22
