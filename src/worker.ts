@@ -8,7 +8,7 @@ import type { ItemTtsMetadata, ProviderId, TtsConfig, TtsProfile, TtsTrack } fro
 
 const manifest: ExtensionManifestV2 = {
   format: 'neo-anki-extension' as const, schemaVersion: 2 as const, sdkVersion: 2 as const,
-  id: EXTENSION_ID, name: 'Text to Speech', version: '2.0.6', minimumNeoAnkiVersion: '0.4.0', publisher: 'NeoAnki contributors', publisherKey: 'MCowBQYDK2VwAyEAWLuNpqQ/JMUPHMJpwJt8QgjNz2Rfw+LSO6nNcWxPdb8=',
+  id: EXTENSION_ID, name: 'Text to Speech', version: '2.0.6', minimumNeoAnkiVersion: '0.4.2', publisher: 'NeoAnki contributors', publisherKey: 'MCowBQYDK2VwAyEAWLuNpqQ/JMUPHMJpwJt8QgjNz2Rfw+LSO6nNcWxPdb8=',
   permissions: ['content:read', 'content:patch-own', 'media:create', 'network:fetch', 'secrets:device', 'config:sync', 'ui:settings', 'ui:review'],
   networkDomains: ['api.openai.com', 'api.elevenlabs.io', 'texttospeech.googleapis.com', '*.tts.speech.microsoft.com'], workerEntry: 'dist/worker.js',
   uiEntries: [{ id: 'settings', surface: 'settings' as const, entry: 'dist/settings.js', label: 'Text to Speech', description: 'Choose voices, providers, and offline audio tracks.', helpText: 'System voices play during review; configured cloud tracks can create portable audio.', icon: 'volume-2', launchDestination: 'extensions/configure' }, { id: 'review', surface: 'review' as const, entry: 'dist/review.js', label: 'Speech controls', description: 'Play configured prompt and answer speech during review.', icon: 'volume-2', launchDestination: 'review' }],

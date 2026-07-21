@@ -4,7 +4,7 @@
   "id": "org.neoanki.tts",
   "name": "Text to Speech",
   "version": "2.0.6",
-  "minimumNeoAnkiVersion": "0.4.0",
+  "minimumNeoAnkiVersion": "0.4.2",
   "sdkVersion": 2,
   "publisher": "NeoAnki contributors",
   "description": "Add spoken prompts and answers with system voices or configurable cloud providers.",
