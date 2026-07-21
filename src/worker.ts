@@ -8,10 +8,11 @@ import type { ItemTtsMetadata, ProviderId, TtsConfig, TtsProfile, TtsTrack } fro
 
 const manifest: ExtensionManifestV2 = {
   format: 'neo-anki-extension' as const, schemaVersion: 2 as const, sdkVersion: 2 as const,
-  id: EXTENSION_ID, name: 'Text to Speech', version: '2.0.3', publisher: 'NeoAnki contributors', publisherKey: 'MCowBQYDK2VwAyEAWLuNpqQ/JMUPHMJpwJt8QgjNz2Rfw+LSO6nNcWxPdb8=',
+  id: EXTENSION_ID, name: 'Text to Speech', version: '2.0.4', minimumNeoAnkiVersion: '0.4.0', publisher: 'NeoAnki contributors', publisherKey: 'MCowBQYDK2VwAyEAWLuNpqQ/JMUPHMJpwJt8QgjNz2Rfw+LSO6nNcWxPdb8=',
   permissions: ['content:read', 'content:patch-own', 'media:create', 'network:fetch', 'secrets:device', 'config:sync', 'ui:settings', 'ui:review'],
   networkDomains: ['api.openai.com', 'api.elevenlabs.io', 'texttospeech.googleapis.com', '*.tts.speech.microsoft.com'], workerEntry: 'dist/worker.js',
-  uiEntries: [{ id: 'settings', surface: 'settings' as const, entry: 'dist/settings.js' }, { id: 'review', surface: 'review' as const, entry: 'dist/review.js' }],
+  uiEntries: [{ id: 'settings', surface: 'settings' as const, entry: 'dist/settings.js', label: 'Text to Speech', description: 'Choose voices, providers, and offline audio tracks.', helpText: 'System voices play during review; configured cloud tracks can create portable audio.', icon: 'volume-2', launchDestination: 'extensions/configure' }, { id: 'review', surface: 'review' as const, entry: 'dist/review.js', label: 'Speech controls', description: 'Play configured prompt and answer speech during review.', icon: 'volume-2', launchDestination: 'review' }],
+  contributions: { authoringActions: [{ id: 'generate-offline-audio', label: 'Generate offline audio after adding knowledge', description: 'After saving, generate portable audio for the matching profile\'s configured cloud tracks. System and realtime voices play during review but do not create files.', defaultSelected: false, availability: 'status-required', configurationDestination: 'settings' }] },
   provenance: { sourceCommit: 'df52d49ccb2d4b6090f8ce9d4b142def52f5acef', buildSystem: 'neo-anki-extension-cli' },
 }
 
@@ -57,16 +58,19 @@ const synthesizeRetry = async (host: ExtensionHostV2, track: TtsTrack, text: str
   }
 }
 
-const generateOne = async (host: ExtensionHostV2, noteId: string, profileId: string, trackId: string, stopped: () => boolean, onOperation: (operationId?: string) => void = () => undefined) => {
+const generateOne = async (host: ExtensionHostV2, noteId: string, profileId: string, trackId: string, stopped: () => boolean, onOperation: (operationId?: string) => void = () => undefined, idempotencyKey?: string) => {
   const config = await configFromHost(host)
+  if (!config.enabled) throw new Error('Text to Speech is disabled. Enable it in extension settings before generating audio.')
   const initial = await queryOne(host, noteId)
   const profile = config.profiles.find((value) => value.id === profileId) || selectMatchingProfile(config.profiles, noteAsItem(initial.note))
   const track = profile?.tracks.find((value) => value.id === trackId)
   if (!profile || !track) throw new Error('The selected TTS profile or track no longer exists.')
+  if (!profile.enabled) throw new Error(`The TTS profile “${profile.name}” is disabled.`)
   if (track.provider === 'system') throw new Error('System voices are real-time only and cannot create portable media.')
   const text = textForTrack(track, noteAsItem(initial.note) as never, profile.processing)
   if (!text) throw new Error('The selected track produces empty text.')
-  const operationId = `tts:${crypto.randomUUID()}`
+  const operationSuffix = idempotencyKey ? `${idempotencyKey.replace(/[^A-Za-z0-9_-]/g, '').slice(0, 80)}:${track.id.replace(/[^A-Za-z0-9_-]/g, '').slice(0, 40)}` : crypto.randomUUID()
+  const operationId = `tts:${operationSuffix}`
   onOperation(operationId)
   const result = await synthesizeRetry(host, track, text, config, operationId, stopped).finally(() => onOperation(undefined))
   if (stopped()) { await host.cancel(operationId); throw new Error('Generation cancelled.') }
@@ -82,7 +86,7 @@ const generateOne = async (host: ExtensionHostV2, noteId: string, profileId: str
     const id = fresh.note.record?.id || `extension:${EXTENSION_ID}:note:${noteId}`
     const value = { id, revision: fresh.note.record ? fresh.note.record.revision + 1 : 1, createdAt: fresh.note.record?.createdAt || timestamp, updatedAt: timestamp, profileId: fresh.note.profileId, extensionId: EXTENSION_ID, targetKind: 'note' as const, targetId: noteId, value: metadata }
     try {
-      await host.applyPatch({ version: 2, idempotencyKey: `tts-metadata:${crypto.randomUUID()}`, expectedWorkspaceRevision: fresh.page.workspaceRevision, owner: { type: 'extension', extensionId: EXTENSION_ID, scopes: ['content:patch-own'] }, operations: [{ op: fresh.note.record ? 'update' : 'create', kind: 'extensionRecord', id, ...(fresh.note.record ? { expectedRevision: fresh.note.record.revision } : {}), value }] })
+      await host.applyPatch({ version: 2, idempotencyKey: idempotencyKey ? `tts-metadata:${operationSuffix}` : `tts-metadata:${crypto.randomUUID()}`, expectedWorkspaceRevision: fresh.page.workspaceRevision, owner: { type: 'extension', extensionId: EXTENSION_ID, scopes: ['content:patch-own'] }, operations: [{ op: fresh.note.record ? 'update' : 'create', kind: 'extensionRecord', id, ...(fresh.note.record ? { expectedRevision: fresh.note.record.revision } : {}), value }] })
       break
     } catch (error) {
       if (attempt >= 19 || !(error instanceof Error) || !/workspace revision conflict/i.test(error.message)) throw error
@@ -92,14 +96,14 @@ const generateOne = async (host: ExtensionHostV2, noteId: string, profileId: str
   return { assetId: media.id, mimeType: result.mimeType, cacheKey: trackMetadata.cacheKey }
 }
 
-interface BatchJob { id: string; state: 'running' | 'completed' | 'cancelled' | 'failed'; completed: number; total: number; generated: number; skipped: number; failures: number; current?: string; error?: string; cancelled: boolean; operationIds: Set<string> }
+interface BatchJob { id: string; state: 'running' | 'completed' | 'cancelled' | 'failed'; completed: number; total: number; generated: number; skipped: number; failures: number; current?: string; error?: string; cancelled: boolean; operationIds: Set<string>; failedNoteIds: Set<string> }
 const jobs = new Map<string, BatchJob>()
 const MAX_RETAINED_JOBS = 20
-const publicJob = (job: BatchJob) => ({ id: job.id, state: job.state, completed: job.completed, total: job.total, generated: job.generated, skipped: job.skipped, failures: job.failures, current: job.current, error: job.error })
+const publicJob = (job: BatchJob) => ({ id: job.id, state: job.state, completed: job.completed, total: job.total, generated: job.generated, skipped: job.skipped, failures: job.failures, current: job.current, error: job.error, failedNotes: job.failedNoteIds.size, canRetry: job.state !== 'running' && job.failedNoteIds.size > 0 })
 
 const collectNotes = async (host: ExtensionHostV2, noteIds?: string[]) => {
   const availableMediaIds = new Set<string>()
-  if (noteIds?.length) {
+  if (noteIds !== undefined) {
     const notes: ExtensionContentNoteDto[] = []
     for (let offset = 0; offset < noteIds.length; offset += 500) { const page = await host.content.listNotes({ noteIds: noteIds.slice(offset, offset + 500), limit: 500 }); notes.push(...page.notes); page.availableMediaIds.forEach((id) => availableMediaIds.add(id)) }
     return { notes, availableMediaIds }
@@ -111,7 +115,9 @@ const collectNotes = async (host: ExtensionHostV2, noteIds?: string[]) => {
 
 const runBatch = async (host: ExtensionHostV2, job: BatchJob, noteIds?: string[]) => {
   try {
-    const config = await configFromHost(host); const collected = await collectNotes(host, noteIds); job.total = collected.notes.length
+    const config = await configFromHost(host)
+    if (!config.enabled) throw new Error('Text to Speech is disabled. Enable it in extension settings before generating audio.')
+    const collected = await collectNotes(host, noteIds); job.total = collected.notes.length
     let nextIndex = 0
     const processNext = async (): Promise<void> => {
       const index = nextIndex; nextIndex += 1
@@ -126,7 +132,7 @@ const runBatch = async (host: ExtensionHostV2, job: BatchJob, noteIds?: string[]
         if (config.skipCurrentAudio && cached && collected.availableMediaIds.has(cached.assetId) && cached.cacheKey === await cacheKeyFor(track, text, config.providers)) { job.skipped += 1; continue }
         let activeOperationId: string | undefined
         try { await generateOne(host, note.noteId, profile!.id, track.id, () => job.cancelled, (operationId) => { if (activeOperationId) job.operationIds.delete(activeOperationId); activeOperationId = operationId; if (operationId) job.operationIds.add(operationId) }); job.generated += 1 }
-        catch (error) { if (job.cancelled) throw error; job.failures += 1; job.error = error instanceof Error ? error.message : 'Track generation failed.' }
+        catch (error) { if (job.cancelled) throw error; job.failures += 1; job.failedNoteIds.add(note.noteId); job.error = error instanceof Error ? error.message : 'Track generation failed.' }
         finally { if (activeOperationId) job.operationIds.delete(activeOperationId) }
       }
       job.completed += 1
@@ -136,6 +142,46 @@ const runBatch = async (host: ExtensionHostV2, job: BatchJob, noteIds?: string[]
     job.state = job.cancelled ? 'cancelled' : 'completed'; job.current = undefined
   } catch (error) { job.state = job.cancelled ? 'cancelled' : 'failed'; job.error = error instanceof Error ? error.message : 'Generation failed.'; job.current = undefined }
   finally { job.operationIds.clear() }
+}
+
+const runAuthoringAction = async (request: Extract<WorkerContributionRequest, { type: 'authoring-action' }>, host: ExtensionHostV2) => {
+  if (request.actionId !== 'generate-offline-audio') throw new Error(`Unsupported TTS authoring action ${request.actionId}.`)
+  const config = await configFromHost(host)
+  if (!config.enabled) throw new Error('Text to Speech is disabled. Enable it in extension settings before generating audio.')
+  const { page, note } = await queryOne(host, request.itemId)
+  const profile = selectMatchingProfile(config.profiles, noteAsItem(note))
+  if (!profile) throw new Error('No enabled TTS profile matches this knowledge item.')
+  const metadata = metadataFrom(note)
+  const tracks = profile.tracks.filter((track) => track.mode === 'generated' && track.provider !== 'system')
+  if (!tracks.length) throw new Error('No portable-audio track matches this knowledge item. Configure an enabled cloud track with “Save for offline playback” first.')
+  let generated = 0; let skipped = 0; const mediaIds: string[] = []; const failures: string[] = []
+  for (const track of tracks) {
+    const text = textForTrack(track, noteAsItem(note) as never, profile.processing)
+    if (!text) { skipped += 1; continue }
+    const cached = metadata.tracks[metadataKey(profile.id, track.id)]
+    if (config.skipCurrentAudio && cached && page.availableMediaIds.includes(cached.assetId) && cached.cacheKey === await cacheKeyFor(track, text, config.providers)) { skipped += 1; mediaIds.push(cached.assetId); continue }
+    try { const result = await generateOne(host, note.noteId, profile.id, track.id, () => false, () => undefined, request.idempotencyKey); generated += 1; mediaIds.push(result.assetId) }
+    catch (error) { failures.push(`${track.name}: ${error instanceof Error ? error.message : 'generation failed'}`) }
+  }
+  if (failures.length) throw new Error(`${generated ? `${generated} track${generated === 1 ? '' : 's'} generated; ` : ''}${failures.length} failed. ${failures.join(' · ')}`)
+  return { state: 'completed', itemId: note.noteId, generated, skipped, mediaIds, message: generated ? `${generated} portable audio track${generated === 1 ? '' : 's'} generated.` : 'Audio is already current.' }
+}
+
+const authoringActionStatus = async (request: Extract<WorkerContributionRequest, { type: 'authoring-action-status' }>, host: ExtensionHostV2) => {
+  if (request.actionId !== 'generate-offline-audio') return { available: false, configured: false, reason: 'This TTS action is not available.' }
+  const config = await configFromHost(host)
+  if (!config.enabled) return { available: false, configured: false, reason: 'Text to Speech is disabled. Enable it in Configure before generating audio.' }
+  const item = { collection: request.draft.collection, tags: request.draft.tags }
+  const profile = selectMatchingProfile(config.profiles, item)
+  if (!profile) return { available: false, configured: false, reason: 'No enabled TTS profile matches this collection and its tags.' }
+  const tracks = profile.tracks.filter((track) => track.mode === 'generated' && track.provider !== 'system')
+  if (!tracks.length) return { available: false, configured: false, reason: `“${profile.name}” has no generated cloud track. System and realtime voices do not create portable files.` }
+  const providers = [...new Set(tracks.map((track) => track.provider as Exclude<ProviderId, 'system'>))]
+  const keys = providers.map(providerSecretKey)
+  const secrets = await host.secrets.read(keys)
+  const configuredTracks = tracks.filter((track) => Boolean(secrets[providerSecretKey(track.provider as Exclude<ProviderId, 'system'>)]))
+  if (!configuredTracks.length) return { available: false, configured: false, reason: `Add credentials in Configure for ${providers.join(', ')} before generating portable audio.` }
+  return { available: true, configured: true, selectionLabel: `${profile.name} · ${configuredTracks.map((track) => track.name).join(', ')}` }
 }
 
 const handleCommand = async (request: Extract<WorkerContributionRequest, { type: 'command' }>, host: ExtensionHostV2) => {
@@ -148,6 +194,7 @@ const handleCommand = async (request: Extract<WorkerContributionRequest, { type:
   if (request.commandId === 'voices.list') { const provider = String(payload?.provider) as ProviderId; return listVoices(provider, legacyHost(host, `tts:voices:${crypto.randomUUID()}`) as never, (await configFromHost(host)).providers) }
   if (request.commandId === 'review.get') {
     const noteId = String(payload?.noteId || ''); const { page, note } = await queryOne(host, noteId); const config = await configFromHost(host); const profile = selectMatchingProfile(config.profiles, noteAsItem(note)); const metadata = metadataFrom(note)
+    if (!config.enabled) throw new Error('Text to Speech is disabled.')
     const currentTrackIds: string[] = []
     for (const track of profile?.tracks || []) {
       const key = metadataKey(profile!.id, track.id); const cached = metadata.tracks[key]
@@ -157,13 +204,56 @@ const handleCommand = async (request: Extract<WorkerContributionRequest, { type:
     return { note, profile, metadata, currentTrackIds }
   }
   if (request.commandId === 'generate.one') return generateOne(host, String(payload?.noteId || ''), String(payload?.profileId || ''), String(payload?.trackId || ''), () => false)
+  if (request.commandId === 'authoring.status') {
+    const noteIds = Array.isArray(payload?.noteIds) ? [...new Set(payload.noteIds.map(String).filter(Boolean))].slice(0, 500) : []
+    const config = await configFromHost(host)
+    if (!noteIds.length) return { enabled: config.enabled, eligibleNotes: 0, eligibleTracks: 0, notes: [], reason: 'Save this knowledge item before generating portable audio.' }
+    const collected = await collectNotes(host, noteIds)
+    const notes = await Promise.all(collected.notes.map(async (note) => {
+      const profile = selectMatchingProfile(config.profiles, noteAsItem(note))
+      const metadata = metadataFrom(note)
+      const tracks = await Promise.all((profile?.tracks || []).filter((track) => track.mode === 'generated' && track.provider !== 'system').map(async (track) => {
+        const text = textForTrack(track, noteAsItem(note) as never, profile!.processing)
+        const cached = metadata.tracks[metadataKey(profile!.id, track.id)]
+        const current = Boolean(text && cached && collected.availableMediaIds.has(cached.assetId) && cached.cacheKey === await cacheKeyFor(track, text, config.providers))
+        return { profileId: profile!.id, trackId: track.id, name: track.name, provider: track.provider, current, eligible: Boolean(text) }
+      }))
+      return { noteId: note.noteId, profileName: profile?.name, tracks }
+    }))
+    const eligibleTracks = notes.flatMap((note) => note.tracks).filter((track) => track.eligible && !track.current).length
+    return { enabled: config.enabled, eligibleNotes: notes.filter((note) => note.tracks.some((track) => track.eligible && !track.current)).length, eligibleTracks, notes, ...(!config.enabled ? { reason: 'Text to Speech is disabled in extension settings.' } : eligibleTracks === 0 ? { reason: 'No missing generated cloud tracks match this note. System and real-time voices cannot create portable audio.' } : {}) }
+  }
+  if (request.commandId === 'authoring.generate') {
+    const noteIds = Array.isArray(payload?.noteIds) ? [...new Set(payload.noteIds.map(String).filter(Boolean))].slice(0, 500) : []
+    if (!noteIds.length) throw new Error('Save this knowledge item before generating portable audio.')
+    const config = await configFromHost(host)
+    if (!config.enabled) throw new Error('Text to Speech is disabled. Enable it in extension settings before generating audio.')
+    for (const [id, retained] of jobs) if (jobs.size >= MAX_RETAINED_JOBS && retained.state !== 'running') jobs.delete(id)
+    if (jobs.size >= MAX_RETAINED_JOBS) throw new Error('Too many TTS batch jobs are still active. Stop or wait for an existing job.')
+    const job: BatchJob = { id: crypto.randomUUID(), state: 'running', completed: 0, total: 0, generated: 0, skipped: 0, failures: 0, cancelled: false, operationIds: new Set(), failedNoteIds: new Set() }
+    jobs.set(job.id, job); void runBatch(host, job, noteIds); return publicJob(job)
+  }
   if (request.commandId === 'batch.start') {
     for (const [id, retained] of jobs) if (jobs.size >= MAX_RETAINED_JOBS && retained.state !== 'running') jobs.delete(id)
     if (jobs.size >= MAX_RETAINED_JOBS) throw new Error('Too many TTS batch jobs are still active. Stop or wait for an existing job.')
-    const job: BatchJob = { id: crypto.randomUUID(), state: 'running', completed: 0, total: 0, generated: 0, skipped: 0, failures: 0, cancelled: false, operationIds: new Set() }; jobs.set(job.id, job); void runBatch(host, job, Array.isArray(payload?.noteIds) ? payload.noteIds.map(String).slice(0, 100_000) : undefined); return publicJob(job)
+    const config = await configFromHost(host)
+    if (!config.enabled) throw new Error('Text to Speech is disabled. Enable it in extension settings before generating audio.')
+    const job: BatchJob = { id: crypto.randomUUID(), state: 'running', completed: 0, total: 0, generated: 0, skipped: 0, failures: 0, cancelled: false, operationIds: new Set(), failedNoteIds: new Set() }; jobs.set(job.id, job); void runBatch(host, job, Array.isArray(payload?.noteIds) ? [...new Set(payload.noteIds.map(String).filter(Boolean))].slice(0, 100_000) : undefined); return publicJob(job)
   }
   if (request.commandId === 'batch.status') { const job = jobs.get(String(payload?.jobId)); if (!job) throw new Error('Batch job was not found.'); return publicJob(job) }
   if (request.commandId === 'batch.cancel') { const job = jobs.get(String(payload?.jobId)); if (!job) throw new Error('Batch job was not found.'); job.cancelled = true; await Promise.allSettled([...job.operationIds].map((operationId) => host.cancel(operationId))); return publicJob(job) }
+  if (request.commandId === 'batch.retry') {
+    const previous = jobs.get(String(payload?.jobId))
+    if (!previous) throw new Error('Batch job was not found.')
+    if (previous.state === 'running') throw new Error('Wait for the current TTS job to finish before retrying.')
+    if (!previous.failedNoteIds.size) throw new Error('This TTS job has no failed notes to retry.')
+    const config = await configFromHost(host)
+    if (!config.enabled) throw new Error('Text to Speech is disabled. Enable it in extension settings before retrying audio.')
+    for (const [id, retained] of jobs) if (jobs.size >= MAX_RETAINED_JOBS && retained.state !== 'running') jobs.delete(id)
+    if (jobs.size >= MAX_RETAINED_JOBS) throw new Error('Too many TTS batch jobs are still active. Stop or wait for an existing job.')
+    const job: BatchJob = { id: crypto.randomUUID(), state: 'running', completed: 0, total: 0, generated: 0, skipped: 0, failures: 0, cancelled: false, operationIds: new Set(), failedNoteIds: new Set() }
+    jobs.set(job.id, job); void runBatch(host, job, [...previous.failedNoteIds]); return publicJob(job)
+  }
   throw new Error(`Unsupported TTS command ${request.commandId}.`)
 }
 
@@ -171,8 +261,8 @@ export const ttsExtension = defineExtension({
   manifest,
   async handle(request: WorkerContributionRequest, host: ExtensionHostV2) {
     const requestId = request.type === 'planning-signals' ? request.request.requestId : request.type === 'cancel' ? request.operationId : request.requestId
-    if (request.type !== 'command') return { type: 'error' as const, requestId, code: 'unsupported', message: 'Text to Speech cannot handle this request.' }
-    try { return { type: 'result' as const, requestId, value: await handleCommand(request, host) } }
+    if (request.type !== 'command' && request.type !== 'authoring-action' && request.type !== 'authoring-action-status') return { type: 'error' as const, requestId, code: 'unsupported', message: 'Text to Speech cannot handle this request.' }
+    try { return { type: 'result' as const, requestId, value: request.type === 'authoring-action' ? await runAuthoringAction(request, host) : request.type === 'authoring-action-status' ? await authoringActionStatus(request, host) : await handleCommand(request, host) } }
     catch (error) { return { type: 'error' as const, requestId, code: 'tts-command-failed', message: error instanceof Error ? error.message : 'TTS command failed.' } }
   },
 })
