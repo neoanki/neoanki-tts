@@ -106,7 +106,7 @@ void createSandboxedUiClient().then(async (client) => {
       byId('secret-status').textContent = error instanceof Error ? error.message : 'Credential status is unavailable.'
     }
   }
-  select('secret-provider').onchange = () => void refreshSecret(); await refreshSecret()
+  select('secret-provider').onchange = () => void refreshSecret()
   const setSecretMutationBusy = (busy: boolean) => {
     ;(byId('save-secret') as HTMLButtonElement).disabled = busy
     ;(byId('delete-secret') as HTMLButtonElement).disabled = busy
@@ -183,6 +183,7 @@ void createSandboxedUiClient().then(async (client) => {
     catch (error) { byId('batch-status').textContent = error instanceof Error ? error.message : 'Batch cancellation failed.' }
   }
   window.addEventListener('beforeunload', () => window.clearTimeout(pollTimer))
+  await refreshSecret()
   setInitialized(true)
   byId('status').textContent = ''
 }).catch((error) => {
