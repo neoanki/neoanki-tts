@@ -1,6 +1,6 @@
 {
   "name": "@neoanki/tts",
-  "version": "2.0.7",
+  "version": "2.1.0",
   "description": "Spoken prompts and answers with system voices, cloud providers, and offline audio.",
   "license": "MIT",
   "type": "module",
@@ -8,11 +8,11 @@
   "neoAnki": {
     "workerEntry": "src/worker.ts",
     "uiEntries": {
-      "settings": "src/settings-v2.ts",
+      "tools": "src/tools-v2.ts",
       "review": "src/review-v2.ts"
     },
     "signingKey": "development/test-ed25519-private.pem",
-    "coreRef": "4f40587f9066eedfe84d603716d0dbb711153f50"
+    "coreRef": "ccb655a4ea882ffebb40f4b08267e15a34cc93e7"
   },
   "scripts": {
     "build": "neo-anki-extension build",

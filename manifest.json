@@ -3,24 +3,167 @@
   "schemaVersion": 2,
   "id": "org.neoanki.tts",
   "name": "Text to Speech",
-  "version": "2.0.7",
-  "minimumNeoAnkiVersion": "0.4.3",
+  "version": "2.1.0",
+  "minimumNeoAnkiVersion": "0.5.0",
   "sdkVersion": 2,
   "publisher": "NeoAnki contributors",
   "description": "Add spoken prompts and answers with system voices or configurable cloud providers.",
   "homepage": "https://github.com/neoanki/neoanki-tts",
   "publisherKey": "MCowBQYDK2VwAyEAWLuNpqQ/JMUPHMJpwJt8QgjNz2Rfw+LSO6nNcWxPdb8=",
-  "permissions": ["content:read", "content:patch-own", "media:create", "network:fetch", "secrets:device", "config:sync", "ui:settings", "ui:review"],
+  "permissions": ["content:read", "content:patch-own", "media:create", "network:fetch", "secrets:device", "config:sync", "ui:page", "ui:review"],
   "networkDomains": ["api.openai.com", "api.elevenlabs.io", "texttospeech.googleapis.com", "*.tts.speech.microsoft.com"],
   "workerEntry": "dist/worker.js",
+  "settings": {
+    "schemaVersion": 1,
+    "label": "Text to Speech",
+    "description": "Configure speech playback, portable audio tracks, matching profiles, and provider credentials.",
+    "helpText": "Generation, provider testing, and other executable workflows are available on the Text to Speech tools page.",
+    "icon": "volume-2",
+    "sections": [
+      {
+        "id": "general",
+        "title": "General",
+        "controls": [
+          { "id": "cloud-privacy", "kind": "notice", "tone": "privacy", "text": "Cloud tracks send processed text to the provider you select. Provider charges, retention terms, and account policies apply. Credentials stay encrypted on this device." },
+          { "id": "enabled", "kind": "toggle", "path": "/enabled", "label": "Enable Text to Speech", "defaultValue": true },
+          { "id": "batch-concurrency", "kind": "number", "path": "/batchConcurrency", "label": "Simultaneous generation requests", "description": "Used by the separate batch generation tool.", "defaultValue": 2, "min": 1, "max": 5, "step": 1, "required": true },
+          { "id": "batch-retries", "kind": "number", "path": "/batchRetries", "label": "Retries after a failed request", "defaultValue": 2, "min": 0, "max": 5, "step": 1, "required": true },
+          { "id": "skip-current", "kind": "toggle", "path": "/skipCurrentAudio", "label": "Skip audio that is already current", "defaultValue": true }
+        ]
+      },
+      {
+        "id": "provider-defaults",
+        "title": "Provider defaults",
+        "description": "Tracks can override these values. Voice discovery and connection tests are available from Text to Speech tools.",
+        "controls": [
+          { "id": "openai-model", "kind": "text", "path": "/providers/openaiModel", "label": "OpenAI default model", "defaultValue": "gpt-4o-mini-tts", "maxLength": 200, "required": true },
+          { "id": "elevenlabs-model", "kind": "text", "path": "/providers/elevenLabsModel", "label": "ElevenLabs default model", "defaultValue": "eleven_multilingual_v2", "maxLength": 200, "required": true },
+          { "id": "google-voice", "kind": "text", "path": "/providers/googleVoice", "label": "Google Cloud default voice", "defaultValue": "", "maxLength": 200 },
+          { "id": "google-language", "kind": "text", "path": "/providers/googleLanguage", "label": "Google Cloud default language", "defaultValue": "en-US", "maxLength": 50, "pattern": "^[A-Za-z]{2,3}(?:-[A-Za-z0-9]{2,8}){0,3}$", "required": true },
+          { "id": "azure-region", "kind": "text", "path": "/providers/azureRegion", "label": "Azure region", "defaultValue": "eastus", "maxLength": 100, "pattern": "^[A-Za-z0-9-]+$", "required": true },
+          { "id": "azure-voice", "kind": "text", "path": "/providers/azureVoice", "label": "Azure default voice", "defaultValue": "en-US-AvaMultilingualNeural", "maxLength": 200, "required": true }
+        ]
+      },
+      {
+        "id": "credentials",
+        "title": "Provider credentials",
+        "description": "Credentials are device-only. Neo Anki shows their status without reading existing plaintext into this form.",
+        "controls": [
+          { "id": "openai-secret", "kind": "secret", "secretKey": "openai.api-key", "label": "OpenAI API key", "description": "Required only by OpenAI tracks." },
+          { "id": "elevenlabs-secret", "kind": "secret", "secretKey": "elevenlabs.api-key", "label": "ElevenLabs API key", "description": "Required only by ElevenLabs tracks." },
+          { "id": "google-secret", "kind": "secret", "secretKey": "google.api-key", "label": "Google Cloud API key", "description": "Required only by Google Cloud tracks." },
+          { "id": "azure-secret", "kind": "secret", "secretKey": "azure.api-key", "label": "Azure Speech API key", "description": "Required only by Azure Speech tracks." }
+        ]
+      },
+      {
+        "id": "profiles",
+        "title": "Profiles and audio tracks",
+        "description": "Specific profile matches take precedence over catch-all profiles. Use Move up and Move down to control profile and track order.",
+        "controls": [
+          {
+            "id": "profiles-list",
+            "kind": "group",
+            "path": "/profiles",
+            "label": "Profiles",
+            "addLabel": "Add profile",
+            "itemLabelPath": "/name",
+            "itemIdPath": "/id",
+            "minItems": 1,
+            "maxItems": 50,
+            "defaultItems": [
+              {
+                "id": "language-learning",
+                "name": "Language learning",
+                "enabled": true,
+                "priority": 0,
+                "match": { "collections": [], "tags": [] },
+                "processing": { "stripHtml": true, "unwrapCloze": true, "removeSoundTags": true, "removeBrackets": false, "replacements": [] },
+                "tracks": [
+                  { "id": "prompt", "name": "Prompt", "side": "prompt", "source": "prompt", "template": "", "provider": "system", "mode": "realtime", "voice": "", "language": "auto", "model": "", "speed": 1, "autoplay": true, "instructions": "", "voiceMode": "single", "fallbacks": [] },
+                  { "id": "answer", "name": "Answer", "side": "answer", "source": "answer", "template": "", "provider": "system", "mode": "realtime", "voice": "", "language": "auto", "model": "", "speed": 1, "autoplay": true, "instructions": "", "voiceMode": "single", "fallbacks": [] }
+                ]
+              }
+            ],
+            "newItem": {
+              "name": "New profile",
+              "enabled": true,
+              "priority": 0,
+              "match": { "collections": [], "tags": [] },
+              "processing": { "stripHtml": true, "unwrapCloze": true, "removeSoundTags": true, "removeBrackets": false, "replacements": [] },
+              "tracks": [
+                { "id": "prompt", "name": "Prompt", "side": "prompt", "source": "prompt", "template": "", "provider": "system", "mode": "realtime", "voice": "", "language": "auto", "model": "", "speed": 1, "autoplay": true, "instructions": "", "voiceMode": "single", "fallbacks": [] }
+              ]
+            },
+            "fields": [
+              { "id": "profile-enabled", "kind": "toggle", "path": "/enabled", "label": "Enable this profile", "defaultValue": true },
+              { "id": "profile-name", "kind": "text", "path": "/name", "label": "Profile name", "minLength": 1, "maxLength": 100, "required": true },
+              { "id": "profile-priority", "kind": "number", "path": "/priority", "label": "Priority", "description": "Higher priorities win when specific profiles overlap.", "defaultValue": 0, "min": -1000, "max": 1000, "step": 1, "required": true },
+              { "id": "profile-collections", "kind": "string-list", "path": "/match/collections", "label": "Matching collections", "description": "Leave empty to match every collection.", "maxItems": 100, "itemMaxLength": 200, "unique": true },
+              { "id": "profile-tags", "kind": "string-list", "path": "/match/tags", "label": "Required tags", "description": "All listed tags must be present. Leave empty to match any tags.", "maxItems": 100, "itemMaxLength": 100, "unique": true },
+              { "id": "strip-html", "kind": "toggle", "path": "/processing/stripHtml", "label": "Remove HTML markup", "defaultValue": true },
+              { "id": "unwrap-cloze", "kind": "toggle", "path": "/processing/unwrapCloze", "label": "Speak cloze text without markers", "defaultValue": true },
+              { "id": "remove-sound-tags", "kind": "toggle", "path": "/processing/removeSoundTags", "label": "Remove existing sound tags", "defaultValue": true },
+              { "id": "remove-brackets", "kind": "toggle", "path": "/processing/removeBrackets", "label": "Remove bracketed text", "defaultValue": false },
+              {
+                "id": "replacement-rules",
+                "kind": "group",
+                "path": "/processing/replacements",
+                "label": "Pronunciation replacements",
+                "addLabel": "Add replacement",
+                "itemIdPath": "/id",
+                "itemLabelPath": "/find",
+                "maxItems": 100,
+                "newItem": { "find": "", "replace": "", "regex": false, "caseSensitive": false },
+                "fields": [
+                  { "id": "replacement-find", "kind": "text", "path": "/find", "label": "Find", "maxLength": 500, "required": true },
+                  { "id": "replacement-value", "kind": "text", "path": "/replace", "label": "Replace with", "maxLength": 500 },
+                  { "id": "replacement-regex", "kind": "toggle", "path": "/regex", "label": "Use regular expression", "defaultValue": false },
+                  { "id": "replacement-case", "kind": "toggle", "path": "/caseSensitive", "label": "Case sensitive", "defaultValue": false }
+                ]
+              },
+              {
+                "id": "tracks-list",
+                "kind": "group",
+                "path": "/tracks",
+                "label": "Audio tracks",
+                "addLabel": "Add audio track",
+                "itemIdPath": "/id",
+                "itemLabelPath": "/name",
+                "minItems": 1,
+                "maxItems": 12,
+                "newItem": { "name": "New track", "side": "prompt", "source": "prompt", "template": "", "provider": "system", "mode": "realtime", "voice": "", "language": "auto", "model": "", "speed": 1, "autoplay": true, "instructions": "", "voiceMode": "single", "fallbacks": [] },
+                "fields": [
+                  { "id": "track-name", "kind": "text", "path": "/name", "label": "Track name", "minLength": 1, "maxLength": 100, "required": true },
+                  { "id": "track-side", "kind": "select", "path": "/side", "label": "Card side", "defaultValue": "prompt", "options": [{ "value": "prompt", "label": "Prompt" }, { "value": "answer", "label": "Answer" }], "required": true },
+                  { "id": "track-source", "kind": "select", "path": "/source", "label": "Text source", "defaultValue": "prompt", "options": [{ "value": "prompt", "label": "Prompt" }, { "value": "answer", "label": "Answer" }, { "value": "context", "label": "Context" }, { "value": "template", "label": "Template" }], "required": true },
+                  { "id": "track-template", "kind": "textarea", "path": "/template", "label": "Text template", "description": "Use {{prompt}}, {{answer}}, {{context}}, {{collection}}, and {{tags}}.", "maxLength": 20000, "visibleWhen": { "path": "/source", "scope": "current", "operator": "equals", "value": "template" }, "requiredWhen": { "path": "/source", "scope": "current", "operator": "equals", "value": "template" } },
+                  { "id": "track-provider", "kind": "select", "path": "/provider", "label": "Provider", "defaultValue": "system", "options": [{ "value": "system", "label": "System voices" }, { "value": "openai", "label": "OpenAI" }, { "value": "elevenlabs", "label": "ElevenLabs" }, { "value": "google", "label": "Google Cloud" }, { "value": "azure", "label": "Azure Speech" }], "required": true },
+                  { "id": "cloud-provider-notice", "kind": "notice", "tone": "privacy", "label": "Cloud provider disclosure", "text": "This track sends its processed text to the selected provider when speech is requested. Review that provider's retention terms before use.", "visibleWhen": { "path": "/provider", "scope": "current", "operator": "not-equals", "value": "system" } },
+                  { "id": "track-mode", "kind": "select", "path": "/mode", "label": "Playback mode", "defaultValue": "realtime", "options": [{ "value": "realtime", "label": "Generate while studying" }, { "value": "generated", "label": "Save for offline playback" }], "enabledWhen": { "path": "/provider", "scope": "current", "operator": "not-equals", "value": "system" }, "required": true },
+                  { "id": "track-voice", "kind": "text", "path": "/voice", "label": "Voice ID or name", "description": "Use Text to Speech tools for provider voice discovery.", "maxLength": 200 },
+                  { "id": "track-language", "kind": "text", "path": "/language", "label": "Language", "defaultValue": "auto", "maxLength": 50, "required": true },
+                  { "id": "track-model", "kind": "text", "path": "/model", "label": "Model override", "description": "Leave empty to use the provider default.", "maxLength": 200 },
+                  { "id": "track-speed", "kind": "range", "path": "/speed", "label": "Speech speed", "defaultValue": 1, "min": 0.5, "max": 2, "step": 0.05, "required": true },
+                  { "id": "track-autoplay", "kind": "toggle", "path": "/autoplay", "label": "Play automatically", "defaultValue": true },
+                  { "id": "track-instructions", "kind": "textarea", "path": "/instructions", "label": "Voice instructions", "description": "Optional style guidance for providers that support it.", "maxLength": 2000, "visibleWhen": { "path": "/provider", "scope": "current", "operator": "equals", "value": "openai" } },
+                  { "id": "track-voice-mode", "kind": "select", "path": "/voiceMode", "label": "Voice selection", "defaultValue": "single", "options": [{ "value": "single", "label": "Single voice" }, { "value": "priority", "label": "Priority fallback" }, { "value": "random", "label": "Random" }], "required": true },
+                  { "id": "fallback-info", "kind": "notice", "tone": "info", "text": "Existing fallback lists are preserved when you save. Manage provider discovery and fallback workflows from Text to Speech tools.", "visibleWhen": { "path": "/voiceMode", "scope": "current", "operator": "not-equals", "value": "single" } }
+                ]
+              }
+            ]
+          }
+        ]
+      }
+    ]
+  },
   "uiEntries": [
-    { "id": "settings", "surface": "settings", "entry": "dist/settings.js", "label": "Text to Speech", "description": "Choose voices, providers, and offline audio tracks.", "helpText": "System voices play during review; configured cloud tracks can create portable audio.", "icon": "volume-2", "launchDestination": "extensions/configure" },
+    { "id": "tools", "surface": "page", "entry": "dist/tools.js", "label": "Text to Speech tools", "description": "Generate portable audio and run provider-dependent workflows.", "helpText": "Configuration and credentials are managed under Extensions → Configure.", "icon": "volume-2", "launchDestination": "extension-page" },
     { "id": "review", "surface": "review", "entry": "dist/review.js", "label": "Speech controls", "description": "Play configured prompt and answer speech during review.", "icon": "volume-2", "launchDestination": "review" }
   ],
   "contributions": {
     "authoringActions": [
-      { "id": "generate-offline-audio", "label": "Generate offline audio after adding knowledge", "description": "After saving, generate portable audio for the matching profile's configured cloud tracks. System and realtime voices play during review but do not create files.", "defaultSelected": false, "availability": "status-required", "configurationDestination": "settings" }
+      { "id": "generate-offline-audio", "label": "Generate offline audio after adding knowledge", "description": "After saving, generate portable audio for the matching profile's configured cloud tracks. System and realtime voices play during review but do not create files.", "defaultSelected": false, "availability": "status-required", "configurationDestination": "extensions/configure" }
     ]
   },
-  "provenance": { "sourceCommit": "df52d49ccb2d4b6090f8ce9d4b142def52f5acef", "coreCommit": "7ad6541f1e4a15553d6ffd31c70708ae193691fe", "buildSystem": "neo-anki-extension-cli" }
+  "provenance": { "sourceCommit": "0000000000000000000000000000000000000000", "coreCommit": "ccb655a4ea882ffebb40f4b08267e15a34cc93e7", "buildSystem": "neo-anki-extension-cli" }
 }
