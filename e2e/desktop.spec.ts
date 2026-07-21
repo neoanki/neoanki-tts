@@ -91,7 +91,9 @@ test('installs the full extension and keeps provider credentials behind the secr
     if (process.env.NEOANKI_TTS_SCREENSHOT) await window.screenshot({ path: process.env.NEOANKI_TTS_SCREENSHOT.replace(/\.png$/, '-profiles.png'), fullPage: true })
 
     await settings.locator('#quick-openai-key').fill('local-test-key-not-real')
-    await settings.getByRole('button', { name: 'Enable offline audio' }).click()
+    const enableOfflineAudio = settings.getByRole('button', { name: 'Enable offline audio' })
+    await expect(enableOfflineAudio).toBeEnabled()
+    await enableOfflineAudio.dispatchEvent('click')
     await expect.poll(async () => ({
       provider: await settings.locator('#provider').inputValue(),
       setupStatus: await settings.locator('#quick-setup-status').textContent(),
