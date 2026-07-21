@@ -119,7 +119,7 @@ test('installs the full extension and keeps provider credentials behind the secr
     await window.getByRole('button', { name: 'Text to Speech tools' }).first().click()
     let tools = window.frameLocator('iframe[title="Text to Speech: tools"]')
     await expect(tools.getByRole('heading', { name: 'Generate portable audio' })).toBeVisible()
-    await tools.getByRole('button', { name: 'Generate missing and outdated audio' }).click()
+    await tools.getByRole('button', { name: 'Generate missing and outdated audio' }).press('Enter')
     await expect(tools.locator('#batch-status')).toHaveText(/completed: \d+\/\d+ notes · [1-9]\d* generated · \d+ skipped · 0 failed/i, { timeout: 20_000 })
     expect(await providerMockCalls(desktop)).toBeGreaterThan(0)
     const persisted = await window.evaluate(async () => {
@@ -143,7 +143,7 @@ test('installs the full extension and keeps provider credentials behind the secr
     await expect(window.locator('iframe[title*="settings" i]')).toHaveCount(0)
     await window.getByRole('button', { name: 'Text to Speech tools' }).first().click()
     tools = window.frameLocator('iframe[title="Text to Speech: tools"]')
-    await tools.getByRole('button', { name: 'Generate missing and outdated audio' }).click()
+    await tools.getByRole('button', { name: 'Generate missing and outdated audio' }).press('Enter')
     await expect(tools.locator('#batch-status')).toHaveText(/completed: \d+\/\d+ notes · 0 generated · [1-9]\d* skipped · 0 failed/i, { timeout: 45_000 })
     expect(await providerMockCalls(desktop)).toBe(0)
 
@@ -171,7 +171,7 @@ test('installs the full extension and keeps provider credentials behind the secr
     await setProviderMockMode(desktop, 'success')
     await window.getByRole('button', { name: 'Text to Speech tools' }).first().click()
     tools = window.frameLocator('iframe[title="Text to Speech: tools"]')
-    await tools.getByRole('button', { name: 'Generate missing and outdated audio' }).click()
+    await tools.getByRole('button', { name: 'Generate missing and outdated audio' }).press('Enter')
     await expect(tools.locator('#batch-status')).toHaveText(/completed: \d+\/\d+ notes · [1-9]\d* generated · \d+ skipped · 0 failed/i, { timeout: 20_000 })
 
     await window.getByRole('button', { name: /^Extensions/ }).first().click()
@@ -184,7 +184,7 @@ test('installs the full extension and keeps provider credentials behind the secr
     await setProviderMockMode(desktop, 'delay')
     await window.getByRole('button', { name: 'Text to Speech tools' }).first().click()
     tools = window.frameLocator('iframe[title="Text to Speech: tools"]')
-    await tools.getByRole('button', { name: 'Generate missing and outdated audio' }).click()
+    await tools.getByRole('button', { name: 'Generate missing and outdated audio' }).press('Enter')
     await expect(tools.locator('#batch-status')).toContainText('running:')
     const stopBatch = tools.getByRole('button', { name: 'Stop' })
     await expect(stopBatch).toBeEnabled()
