@@ -1,6 +1,6 @@
 {
   "name": "@neoanki/tts",
-  "version": "2.0.6",
+  "version": "2.0.7",
   "description": "Spoken prompts and answers with system voices, cloud providers, and offline audio.",
   "license": "MIT",
   "type": "module",
@@ -12,7 +12,7 @@
       "review": "src/review-v2.ts"
     },
     "signingKey": "development/test-ed25519-private.pem",
-    "coreRef": "b90d007a697ae0064ccdbdf20dc64ccdf85fc288"
+    "coreRef": "4f40587f9066eedfe84d603716d0dbb711153f50"
   },
   "scripts": {
     "build": "neo-anki-extension build",

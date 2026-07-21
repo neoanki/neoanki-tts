@@ -34,7 +34,7 @@ Cloud providers may charge for speech generation. Text to Speech sends requests 
 
 ## Install
 
-1. Download `org.neoanki.tts-2.0.6.neoanki-extension` from the latest release.
+1. Download `org.neoanki.tts-2.0.7.neoanki-extension` from the latest release.
 2. In Neo Anki, open **Extensions → Browse → Install from file**.
 3. Review the requested permissions, cloud-provider domains, and device-only credential storage.
 4. Install and reload Neo Anki.
@@ -73,7 +73,7 @@ npm run check
 npm run build
 ```
 
-The installable, Ed25519-signed artifact is written to `build/org.neoanki.tts-2.0.6.neoanki-extension`. The checked-in private key is deliberately a development-only fixture. Production publishers must supply `NEO_ANKI_EXTENSION_SIGNING_KEY` from protected release secrets and publish the matching public key in the manifest.
+The installable, Ed25519-signed artifact is written to `build/org.neoanki.tts-2.0.7.neoanki-extension`. The checked-in private key is deliberately a development-only fixture. Production publishers must supply `NEO_ANKI_EXTENSION_SIGNING_KEY` from protected release secrets and publish the matching public key in the manifest.
 
 Tagged releases also verify the exact core/SDK commit declared by `neoAnki.coreRef` and stamp both the TTS source commit and core commit into the signed package provenance. A release fails if either packaged value differs from the checked-out immutable input.
 
