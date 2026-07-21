@@ -16,5 +16,5 @@
     { "id": "settings", "surface": "settings", "entry": "dist/settings.js" },
     { "id": "review", "surface": "review", "entry": "dist/review.js" }
   ],
-  "provenance": { "sourceCommit": "df52d49ccb2d4b6090f8ce9d4b142def52f5acef", "coreCommit": "fb531af9562d9cda44bae5d0744187bbad1aee47", "buildSystem": "neo-anki-extension-cli" }
+  "provenance": { "sourceCommit": "df52d49ccb2d4b6090f8ce9d4b142def52f5acef", "coreCommit": "deaa3869c5144fd6701b1477ffc1501be646c638", "buildSystem": "neo-anki-extension-cli" }
 }

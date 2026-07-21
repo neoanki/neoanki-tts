@@ -12,7 +12,7 @@
       "review": "src/review-v2.ts"
     },
     "signingKey": "development/test-ed25519-private.pem",
-    "coreRef": "fb531af9562d9cda44bae5d0744187bbad1aee47"
+    "coreRef": "deaa3869c5144fd6701b1477ffc1501be646c638"
   },
   "scripts": {
     "build": "neo-anki-extension build",
