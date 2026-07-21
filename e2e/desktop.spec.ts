@@ -83,7 +83,7 @@ test('installs the full extension and keeps provider credentials encrypted', asy
     }
     if (insecureLinuxBackend) {
       await settings.getByRole('button', { name: 'Save settings' }).click()
-      await expect.poll(() => persistedTrack(window), { timeout: 30_000 }).not.toBeNull()
+      await expect(settings.locator('#status')).toHaveText('Settings saved to the encrypted workspace.', { timeout: 30_000 })
       expect(rendererErrors).toEqual([])
     } else {
     await settings.locator('#provider').selectOption('openai')
