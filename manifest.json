@@ -2,11 +2,11 @@
   "format": "neo-anki-extension",
   "schemaVersion": 2,
   "id": "org.neoanki.tts",
-  "name": "NeoAnki TTS",
-  "version": "2.0.2",
+  "name": "Text to Speech",
+  "version": "2.0.3",
   "sdkVersion": 2,
   "publisher": "NeoAnki contributors",
-  "description": "Provider-grade text-to-speech with profiles, batch generation, cached media, and real-time review playback.",
+  "description": "Add spoken prompts and answers with system voices or configurable cloud providers.",
   "homepage": "https://github.com/neoanki/neoanki-tts",
   "publisherKey": "MCowBQYDK2VwAyEAWLuNpqQ/JMUPHMJpwJt8QgjNz2Rfw+LSO6nNcWxPdb8=",
   "permissions": ["content:read", "content:patch-own", "media:create", "network:fetch", "secrets:device", "config:sync", "ui:settings", "ui:review"],
@@ -16,5 +16,5 @@
     { "id": "settings", "surface": "settings", "entry": "dist/settings.js" },
     { "id": "review", "surface": "review", "entry": "dist/review.js" }
   ],
-  "provenance": { "sourceCommit": "df52d49ccb2d4b6090f8ce9d4b142def52f5acef", "coreCommit": "fb531af9562d9cda44bae5d0744187bbad1aee47", "buildSystem": "neo-anki-extension-cli" }
+  "provenance": { "sourceCommit": "df52d49ccb2d4b6090f8ce9d4b142def52f5acef", "coreCommit": "deaa3869c5144fd6701b1477ffc1501be646c638", "buildSystem": "neo-anki-extension-cli" }
 }

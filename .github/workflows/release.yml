@@ -29,7 +29,7 @@ jobs:
         with:
           repository: neoanki/neo-anki
           path: neo-anki
-          ref: fb531af9562d9cda44bae5d0744187bbad1aee47
+          ref: deaa3869c5144fd6701b1477ffc1501be646c638
       - uses: actions/setup-node@v7
         with:
           node-version: 22

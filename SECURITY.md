@@ -2,7 +2,7 @@
 
 Report vulnerabilities privately through GitHub Security Advisories for this repository. Never include a real API key, generated private audio, or personal study content in a report.
 
-NeoAnki TTS uses the public Neo Anki host for two privileged operations:
+Text to Speech uses Neo Anki for two permission-protected operations:
 
 - API keys are encrypted by the operating system credential service.
 - HTTPS requests are limited to the domains declared in `manifest.json`.
