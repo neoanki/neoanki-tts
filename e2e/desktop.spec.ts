@@ -188,7 +188,7 @@ test('installs the full extension and keeps provider credentials behind the secr
     await expect(tools.locator('#batch-status')).toContainText('running:')
     const stopBatch = tools.getByRole('button', { name: 'Stop' })
     await expect(stopBatch).toBeEnabled()
-    await stopBatch.click()
+    await stopBatch.press('Enter')
     await expect(tools.locator('#batch-status')).toContainText('cancelled:', { timeout: 15_000 })
   } finally {
     const child = desktop.process()
