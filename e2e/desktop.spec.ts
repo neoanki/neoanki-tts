@@ -90,8 +90,9 @@ test('installs the full extension and keeps provider credentials behind the secr
 
     const apiKey = window.getByLabel('OpenAI API key')
     await apiKey.fill('local-test-key-not-real')
-    await window.getByRole('button', { name: 'Set' }).first().click()
-    await expect(window.getByText('Credential saved on this device.')).toBeVisible({ timeout: 30_000 })
+    const openAiCredential = apiKey.locator('xpath=ancestor::div[contains(@class, "extension-setting-secret")]')
+    await openAiCredential.getByRole('button', { name: 'Set', exact: true }).click()
+    await expect(openAiCredential.getByText('Credential saved on this device.')).toBeVisible({ timeout: 30_000 })
     await expect(apiKey).toHaveValue('')
     await expect(window.getByText('Configured').first()).toBeVisible()
     await window.getByLabel('Provider').first().selectOption('openai')
