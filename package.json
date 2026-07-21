@@ -19,12 +19,14 @@
     "check": "neo-anki-extension check",
     "test": "vitest run",
     "test:coverage": "vitest run --coverage",
+    "test:desktop": "playwright test --config=playwright.config.ts",
     "typecheck": "tsc --noEmit"
   },
   "dependencies": {
     "@neo-anki/extension-sdk": "file:../neo-anki/packages/extension-sdk"
   },
   "devDependencies": {
+    "@playwright/test": "^1.61.1",
     "@vitest/coverage-v8": "^4.1.10",
     "jsdom": "^29.1.0",
     "typescript": "~5.7.2",

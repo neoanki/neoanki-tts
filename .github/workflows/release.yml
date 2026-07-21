@@ -83,6 +83,10 @@ jobs:
           NODE
       - run: npm audit --audit-level=high
         working-directory: neoanki-tts
+      - run: npm run build && npm run desktop:prepare
+        working-directory: neo-anki
+      - run: xvfb-run --auto-servernum npm run test:desktop
+        working-directory: neoanki-tts
       - name: Create checksums
         run: cd build && sha256sum *.neoanki-extension > SHA256SUMS.txt
         working-directory: neoanki-tts
