@@ -47,7 +47,7 @@ const persistedTrack = (window: Awaited<ReturnType<ElectronApplication['firstWin
 test('installs the full extension and keeps provider credentials encrypted', async () => {
   test.setTimeout(240_000)
   const userData = await mkdtemp(join(tmpdir(), 'neoanki-tts-'))
-  const packagePath = join(extensionRoot, 'build', 'org.neoanki.tts-2.0.5.neoanki-extension')
+  const packagePath = join(extensionRoot, 'build', 'org.neoanki.tts-2.0.6.neoanki-extension')
   const insecureLinuxBackend = process.platform === 'linux'
   let desktop = await electron.launch({
     executablePath: electronExecutable,
@@ -65,9 +65,20 @@ test('installs the full extension and keeps provider credentials encrypted', asy
     await window.getByRole('button', { name: /create workspace/i }).click()
     window.once('dialog', (dialog) => dialog.accept())
     await window.getByRole('button', { name: /load sample workspace/i }).click()
-    await window.getByRole('button', { name: /^Extensions/ }).first().click()
-    await window.getByRole('tab', { name: /configure/i }).click()
-    const settings = window.frameLocator('iframe[title="Text to Speech: settings"]')
+    await window.getByRole('button', { name: 'Library' }).first().click()
+    await window.locator('.library-header').getByRole('button', { name: 'Add knowledge item' }).click()
+    await expect(window.getByRole('heading', { name: 'New knowledge' })).toBeVisible()
+    await window.getByLabel('Prompt', { exact: true }).fill('Why does retrieval practice improve memory?')
+    await window.getByLabel('Answer', { exact: true }).fill('It strengthens the pathway used to recall the information.')
+    const unavailableAction = window.locator('.authoring-action').filter({ hasText: 'Generate offline audio after adding knowledge' })
+    await expect(unavailableAction.getByRole('checkbox')).toBeDisabled()
+    await expect(unavailableAction).toContainText(/has no generated cloud track/i)
+    if (process.env.NEOANKI_TTS_SCREENSHOT) {
+      await window.screenshot({ path: process.env.NEOANKI_TTS_SCREENSHOT.replace(/\.png$/, '-create-setup.png'), fullPage: true })
+      await unavailableAction.screenshot({ path: process.env.NEOANKI_TTS_SCREENSHOT.replace(/\.png$/, '-create-setup-action.png') })
+    }
+    await unavailableAction.getByRole('button', { name: 'Set up Text to Speech' }).click()
+    let settings = window.frameLocator('iframe[title="Text to Speech: settings"]')
     await expect(window.getByRole('heading', { name: 'Text to Speech' })).toBeVisible()
     await expect(settings.getByRole('heading', { name: 'General' })).toBeVisible()
     await expect(settings.getByText(/Cloud voice privacy/i)).toBeVisible()
@@ -77,12 +88,12 @@ test('installs the full extension and keeps provider credentials encrypted', asy
     await expect(settings.locator('#secret-status')).not.toBeEmpty()
     if (process.env.NEOANKI_TTS_SCREENSHOT) await window.screenshot({ path: process.env.NEOANKI_TTS_SCREENSHOT.replace(/\.png$/, '-profiles.png'), fullPage: true })
 
-    await settings.locator('#secret-provider').selectOption('openai')
-    await settings.locator('#secret').fill('local-test-key-not-real')
-    await settings.getByRole('button', { name: 'Save key on this device' }).click()
+    await settings.locator('#quick-openai-key').fill('local-test-key-not-real')
+    await settings.getByRole('button', { name: 'Enable offline audio' }).click()
     if (insecureLinuxBackend) {
       await expect(settings.getByText(/secure OS credential storage is unavailable/i)).toBeVisible()
     } else {
+      await expect(settings.locator('#quick-setup-status')).toHaveText(/Offline prompt audio is ready/i)
       await expect(settings.getByText(/OpenAI key is configured/i)).toBeVisible()
     }
     if (insecureLinuxBackend) {
@@ -92,14 +103,29 @@ test('installs the full extension and keeps provider credentials encrypted', asy
       await expect(settings.locator('#status')).toHaveText('Settings saved to the encrypted workspace.', { timeout: 30_000 })
       expect(rendererErrors).toEqual([])
     } else {
-    await settings.locator('#provider').selectOption('openai')
-    await settings.locator('#mode').selectOption('generated')
-    await settings.locator('#voice').fill('coral')
+    await expect.poll(() => persistedTrack(window), { timeout: 30_000 }).toMatchObject({ provider: 'openai', mode: 'generated', voice: 'coral' })
     await expect(settings.locator('#provider-disclosure')).toContainText(/processed prompt text is sent to OpenAI using model/i)
     await expect(settings.locator('#provider-disclosure a')).toHaveAttribute('href', /platform\.openai\.com/)
     await expect(settings.locator('#overlaps')).toContainText(/No other profile can match/i)
-    await settings.getByRole('button', { name: 'Save settings' }).click()
-    await expect.poll(() => persistedTrack(window), { timeout: 30_000 }).toMatchObject({ provider: 'openai', mode: 'generated', voice: 'coral' })
+
+    await window.getByRole('button', { name: 'Back to new knowledge' }).click()
+    await expect(window.getByLabel('Prompt', { exact: true })).toHaveValue('Why does retrieval practice improve memory?')
+    await expect(window.getByLabel('Answer', { exact: true })).toHaveValue('It strengthens the pathway used to recall the information.')
+    const authoringAction = window.locator('.authoring-action').filter({ hasText: 'Generate offline audio after adding knowledge' })
+    await expect(authoringAction.getByRole('checkbox')).toBeEnabled()
+    await expect(authoringAction).toContainText(/Language learning · Prompt/i)
+    if (process.env.NEOANKI_TTS_SCREENSHOT) {
+      await window.screenshot({ path: process.env.NEOANKI_TTS_SCREENSHOT.replace(/\.png$/, '-create-ready.png'), fullPage: true })
+      await authoringAction.screenshot({ path: process.env.NEOANKI_TTS_SCREENSHOT.replace(/\.png$/, '-create-ready-action.png') })
+    }
+    await authoringAction.getByRole('checkbox').check()
+    await window.getByRole('button', { name: 'Add knowledge & generate audio' }).click()
+    await expect(window.getByText(/1 portable audio track generated/i)).toBeVisible({ timeout: 30_000 })
+
+    await window.getByRole('button', { name: /^Extensions/ }).first().click()
+    await window.getByRole('tab', { name: /configure/i }).click()
+    settings = window.frameLocator('iframe[title="Text to Speech: settings"]')
+    await expect(settings.getByText(/OpenAI key is configured/i)).toBeVisible()
     await settings.getByRole('button', { name: 'Generate missing and outdated audio' }).dispatchEvent('click')
     await expect(settings.locator('#batch-status')).toHaveText(/completed: \d+\/\d+ notes · [1-9]\d* generated · \d+ skipped · 0 failed/i, { timeout: 20_000 })
     expect(await providerMockCalls(desktop)).toBeGreaterThan(0)
