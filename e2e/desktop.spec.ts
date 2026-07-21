@@ -82,7 +82,9 @@ test('installs the full extension and keeps provider credentials encrypted', asy
       await expect(settings.getByText(/OpenAI key is configured/i)).toBeVisible()
     }
     if (insecureLinuxBackend) {
-      await settings.getByRole('button', { name: 'Save settings' }).click()
+      const saveSettings = settings.getByRole('button', { name: 'Save settings' })
+      await expect(saveSettings).toBeEnabled()
+      await saveSettings.dispatchEvent('click')
       await expect(settings.locator('#status')).toHaveText('Settings saved to the encrypted workspace.', { timeout: 30_000 })
       expect(rendererErrors).toEqual([])
     } else {
