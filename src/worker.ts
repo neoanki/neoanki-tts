@@ -1,4 +1,5 @@
 import { defineExtension, exposeExtensionWorker, type ExtensionContentNoteDto, type ExtensionHostV2, type ExtensionManifestV2, type WorkerContributionRequest } from '@neo-anki/extension-sdk'
+import manifestDocument from '../manifest.json' with { type: 'json' }
 import { EXTENSION_ID, DEFAULT_CONFIG, normalizeConfig, selectMatchingProfile } from './config.js'
 import { cacheKeyFor } from './generation.js'
 import { metadataKey } from './media.js'
@@ -6,15 +7,7 @@ import { listVoices, providerSecretKey, synthesizeWithFallback } from './provide
 import { textForTrack } from './text.js'
 import type { ItemTtsMetadata, ProviderId, TtsConfig, TtsProfile, TtsTrack } from './types.js'
 
-const manifest: ExtensionManifestV2 = {
-  format: 'neo-anki-extension' as const, schemaVersion: 2 as const, sdkVersion: 2 as const,
-  id: EXTENSION_ID, name: 'Text to Speech', version: '2.0.6', minimumNeoAnkiVersion: '0.4.2', publisher: 'NeoAnki contributors', publisherKey: 'MCowBQYDK2VwAyEAWLuNpqQ/JMUPHMJpwJt8QgjNz2Rfw+LSO6nNcWxPdb8=',
-  permissions: ['content:read', 'content:patch-own', 'media:create', 'network:fetch', 'secrets:device', 'config:sync', 'ui:settings', 'ui:review'],
-  networkDomains: ['api.openai.com', 'api.elevenlabs.io', 'texttospeech.googleapis.com', '*.tts.speech.microsoft.com'], workerEntry: 'dist/worker.js',
-  uiEntries: [{ id: 'settings', surface: 'settings' as const, entry: 'dist/settings.js', label: 'Text to Speech', description: 'Choose voices, providers, and offline audio tracks.', helpText: 'System voices play during review; configured cloud tracks can create portable audio.', icon: 'volume-2', launchDestination: 'extensions/configure' }, { id: 'review', surface: 'review' as const, entry: 'dist/review.js', label: 'Speech controls', description: 'Play configured prompt and answer speech during review.', icon: 'volume-2', launchDestination: 'review' }],
-  contributions: { authoringActions: [{ id: 'generate-offline-audio', label: 'Generate offline audio after adding knowledge', description: 'After saving, generate portable audio for the matching profile\'s configured cloud tracks. System and realtime voices play during review but do not create files.', defaultSelected: false, availability: 'status-required', configurationDestination: 'settings' }] },
-  provenance: { sourceCommit: 'df52d49ccb2d4b6090f8ce9d4b142def52f5acef', buildSystem: 'neo-anki-extension-cli' },
-}
+const manifest = manifestDocument as unknown as ExtensionManifestV2
 
 const fromBase64 = (value: string) => Uint8Array.from(atob(value), (character) => character.charCodeAt(0))
 const toBase64 = (bytes: Uint8Array) => {
@@ -186,11 +179,6 @@ const authoringActionStatus = async (request: Extract<WorkerContributionRequest,
 
 const handleCommand = async (request: Extract<WorkerContributionRequest, { type: 'command' }>, host: ExtensionHostV2) => {
   const payload = request.payload as Record<string, unknown> | undefined
-  if (request.commandId === 'config.get') return configFromHost(host)
-  if (request.commandId === 'config.save') { const config = normalizeConfig(payload?.config); await host.config.write(config); return config }
-  if (request.commandId === 'secret.status') { const provider = String(payload?.provider) as Exclude<ProviderId, 'system'>; const key = providerSecretKey(provider); return { configured: Boolean((await host.secrets.read([key]))[key]) } }
-  if (request.commandId === 'secret.set') { const provider = String(payload?.provider) as Exclude<ProviderId, 'system'>; const value = String(payload?.value || ''); if (!value) throw new Error('API key cannot be empty.'); await host.secrets.mutate([{ op: 'set', key: providerSecretKey(provider), value }]); return { configured: true } }
-  if (request.commandId === 'secret.delete') { const provider = String(payload?.provider) as Exclude<ProviderId, 'system'>; await host.secrets.mutate([{ op: 'delete', key: providerSecretKey(provider) }]); return { configured: false } }
   if (request.commandId === 'voices.list') { const provider = String(payload?.provider) as ProviderId; return listVoices(provider, legacyHost(host, `tts:voices:${crypto.randomUUID()}`) as never, (await configFromHost(host)).providers) }
   if (request.commandId === 'review.get') {
     const noteId = String(payload?.noteId || ''); const { page, note } = await queryOne(host, noteId); const config = await configFromHost(host); const profile = selectMatchingProfile(config.profiles, noteAsItem(note)); const metadata = metadataFrom(note)

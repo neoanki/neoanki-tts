@@ -6,7 +6,8 @@ Add spoken prompts and answers to Neo Anki with free system voices or cloud spee
 
 - OpenAI, ElevenLabs, Google Cloud Text-to-Speech, Azure Speech, and operating-system voices.
 - Encrypted API-key storage through the operating system credential service.
-- Provider voice discovery, manual voice IDs, model overrides, language selection, speed, and OpenAI style instructions.
+- A host-rendered declarative configuration form for profiles, tracks, provider defaults, and device-only credentials.
+- Provider connection checks and voice discovery on a separate operational tools page, plus manual voice IDs, model overrides, language selection, speed, and OpenAI style instructions.
 - Profiles selected automatically by collection and required tags.
 - Any number of prompt/answer tracks in one profile. A single job can generate Spanish prompt audio and English answer audio together.
 - Single, priority-fallback, and random voice strategies, including cross-provider fallbacks.
@@ -34,13 +35,15 @@ Cloud providers may charge for speech generation. Text to Speech sends requests 
 
 ## Install
 
-1. Download `org.neoanki.tts-2.0.7.neoanki-extension` from the latest release.
+1. Download `org.neoanki.tts-2.1.0.neoanki-extension` from the latest release.
 2. In Neo Anki, open **Extensions → Browse → Install from file**.
 3. Review the requested permissions, cloud-provider domains, and device-only credential storage.
 4. Install and reload Neo Anki.
-5. Open **Settings → Text to Speech**.
+5. Open **Extensions → Configure → Text to Speech**.
 
-Start for free with the default two-track system-voice profile. For portable, consistent audio, add a cloud provider key, choose a provider and voice under **Profiles and audio tracks**, select **Save for offline playback**, and run **Generate missing and outdated audio**.
+Start for free with the default two-track system-voice profile. For portable, consistent audio, add a cloud provider key, choose a provider and voice under **Profiles and audio tracks**, select **Save for offline playback**, save the configuration, then run **Generate missing and outdated audio** from the dedicated **Text to Speech tools** extension page.
+
+The Configure screen is rendered entirely by Neo Anki from inert manifest data. It does not load extension UI code and cannot invoke generation, provider tests, network requests, commands, or other processing. Synchronized values use the existing TTS configuration paths; provider keys keep their existing `<provider>.api-key` device-secret names.
 
 ## How generated audio works
 
@@ -73,7 +76,7 @@ npm run check
 npm run build
 ```
 
-The installable, Ed25519-signed artifact is written to `build/org.neoanki.tts-2.0.7.neoanki-extension`. The checked-in private key is deliberately a development-only fixture. Production publishers must supply `NEO_ANKI_EXTENSION_SIGNING_KEY` from protected release secrets and publish the matching public key in the manifest.
+The installable, Ed25519-signed artifact is written to `build/org.neoanki.tts-2.1.0.neoanki-extension`. The checked-in private key is deliberately a development-only fixture. Production publishers must supply `NEO_ANKI_EXTENSION_SIGNING_KEY` from protected release secrets and publish the matching public key in the manifest.
 
 Tagged releases also verify the exact core/SDK commit declared by `neoAnki.coreRef` and stamp both the TTS source commit and core commit into the signed package provenance. A release fails if either packaged value differs from the checked-out immutable input.
 

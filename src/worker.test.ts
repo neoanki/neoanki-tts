@@ -140,17 +140,15 @@ describe('SDK v2 TTS worker batches', () => {
     expect(completed).toMatchObject({ state: 'completed', total: 1, generated: 1, failures: 0, canRetry: false })
   })
 
-  it('reports note-scoped authoring status and exercises configuration commands', async () => {
-    const mutations: unknown[] = []
+  it('reports note-scoped authoring status without exposing configuration mutation commands', async () => {
     const host = hostWith(async () => ({ status: 200, headers: {}, body: new Uint8Array() }))
-    host.secrets.mutate = async (operations) => { mutations.push(...operations) }
 
-    await expect(command(host, 'config.get')).resolves.toMatchObject({ enabled: true })
-    await expect(command(host, 'config.save', { config: config() })).resolves.toMatchObject({ enabled: true })
-    await expect(command(host, 'secret.status', { provider: 'openai' })).resolves.toEqual({ configured: true })
-    await expect(command(host, 'secret.set', { provider: 'openai', value: 'replacement' })).resolves.toEqual({ configured: true })
-    await expect(command(host, 'secret.delete', { provider: 'openai' })).resolves.toEqual({ configured: false })
-    expect(mutations).toHaveLength(2)
+    await expect(command(host, 'config.get')).rejects.toThrow(/unsupported/i)
+    await expect(command(host, 'config.save', { config: config() })).rejects.toThrow(/unsupported/i)
+    await expect(command(host, 'secret.status', { provider: 'openai' })).rejects.toThrow(/unsupported/i)
+    await expect(command(host, 'secret.set', { provider: 'openai', value: 'replacement' })).rejects.toThrow(/unsupported/i)
+    await expect(command(host, 'secret.delete', { provider: 'openai' })).rejects.toThrow(/unsupported/i)
+    await expect(command<Array<{ id: string }>>(host, 'voices.list', { provider: 'openai' })).resolves.toContainEqual({ id: 'coral', name: 'Coral', language: 'Multilingual', provider: 'openai' })
 
     await expect(command(host, 'authoring.status')).resolves.toMatchObject({ eligibleNotes: 0, eligibleTracks: 0 })
     await expect(command(host, 'authoring.status', { noteIds: ['note-1', '', 'note-1'] })).resolves.toMatchObject({ enabled: true, eligibleNotes: 1, eligibleTracks: 1 })
