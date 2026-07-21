@@ -3,7 +3,7 @@
   "schemaVersion": 2,
   "id": "org.neoanki.tts",
   "name": "Text to Speech",
-  "version": "2.0.4",
+  "version": "2.0.5",
   "minimumNeoAnkiVersion": "0.4.0",
   "sdkVersion": 2,
   "publisher": "NeoAnki contributors",

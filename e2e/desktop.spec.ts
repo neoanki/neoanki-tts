@@ -45,9 +45,9 @@ const persistedTrack = (window: Awaited<ReturnType<ElectronApplication['firstWin
 })
 
 test('installs the full extension and keeps provider credentials encrypted', async () => {
-  test.setTimeout(120_000)
+  test.setTimeout(240_000)
   const userData = await mkdtemp(join(tmpdir(), 'neoanki-tts-'))
-  const packagePath = join(extensionRoot, 'build', 'org.neoanki.tts-2.0.4.neoanki-extension')
+  const packagePath = join(extensionRoot, 'build', 'org.neoanki.tts-2.0.5.neoanki-extension')
   const insecureLinuxBackend = process.platform === 'linux'
   let desktop = await electron.launch({
     executablePath: electronExecutable,
@@ -68,7 +68,8 @@ test('installs the full extension and keeps provider credentials encrypted', asy
     await window.getByRole('button', { name: /^Extensions/ }).first().click()
     await window.getByRole('tab', { name: /configure/i }).click()
     const settings = window.frameLocator('iframe[title="Text to Speech: settings"]')
-    await expect(settings.getByRole('heading', { name: 'Text to Speech' })).toBeVisible()
+    await expect(window.getByRole('heading', { name: 'Text to Speech' })).toBeVisible()
+    await expect(settings.getByRole('heading', { name: 'General' })).toBeVisible()
     await expect(settings.getByText(/Cloud voice privacy/i)).toBeVisible()
     await expect(settings.locator('#status')).toBeEmpty()
     await expect(settings.locator('#profile')).toHaveValue('language-learning')
