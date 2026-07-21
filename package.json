@@ -1,7 +1,7 @@
 {
   "name": "@neoanki/tts",
-  "version": "2.0.2",
-  "description": "Full provider-based text-to-speech, batch generation, and review audio for Neo Anki.",
+  "version": "2.0.3",
+  "description": "Spoken prompts and answers with system voices, cloud providers, and offline audio.",
   "license": "MIT",
   "type": "module",
   "private": true,

@@ -8,7 +8,7 @@ import type { ItemTtsMetadata, ProviderId, TtsConfig, TtsProfile, TtsTrack } fro
 
 const manifest: ExtensionManifestV2 = {
   format: 'neo-anki-extension' as const, schemaVersion: 2 as const, sdkVersion: 2 as const,
-  id: EXTENSION_ID, name: 'NeoAnki TTS', version: '2.0.2', publisher: 'NeoAnki contributors', publisherKey: 'MCowBQYDK2VwAyEAWLuNpqQ/JMUPHMJpwJt8QgjNz2Rfw+LSO6nNcWxPdb8=',
+  id: EXTENSION_ID, name: 'Text to Speech', version: '2.0.3', publisher: 'NeoAnki contributors', publisherKey: 'MCowBQYDK2VwAyEAWLuNpqQ/JMUPHMJpwJt8QgjNz2Rfw+LSO6nNcWxPdb8=',
   permissions: ['content:read', 'content:patch-own', 'media:create', 'network:fetch', 'secrets:device', 'config:sync', 'ui:settings', 'ui:review'],
   networkDomains: ['api.openai.com', 'api.elevenlabs.io', 'texttospeech.googleapis.com', '*.tts.speech.microsoft.com'], workerEntry: 'dist/worker.js',
   uiEntries: [{ id: 'settings', surface: 'settings' as const, entry: 'dist/settings.js' }, { id: 'review', surface: 'review' as const, entry: 'dist/review.js' }],
@@ -170,8 +170,8 @@ const handleCommand = async (request: Extract<WorkerContributionRequest, { type:
 export const ttsExtension = defineExtension({
   manifest,
   async handle(request: WorkerContributionRequest, host: ExtensionHostV2) {
-    const requestId = request.type === 'command' ? request.requestId : request.type === 'planning-signals' ? request.request.requestId : request.operationId
-    if (request.type !== 'command') return { type: 'error' as const, requestId, code: 'unsupported', message: 'NeoAnki TTS handles UI commands only.' }
+    const requestId = request.type === 'planning-signals' ? request.request.requestId : request.type === 'cancel' ? request.operationId : request.requestId
+    if (request.type !== 'command') return { type: 'error' as const, requestId, code: 'unsupported', message: 'Text to Speech cannot handle this request.' }
     try { return { type: 'result' as const, requestId, value: await handleCommand(request, host) } }
     catch (error) { return { type: 'error' as const, requestId, code: 'tts-command-failed', message: error instanceof Error ? error.message : 'TTS command failed.' } }
   },

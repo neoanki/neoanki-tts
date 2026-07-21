@@ -45,6 +45,7 @@ const hostWith = (fetch: ExtensionHostV2['fetch'], cancel: ExtensionHostV2['canc
   secrets: { read: async (keys) => Object.fromEntries(keys.map((key) => [key, 'fixture-secret'])), mutate: async () => undefined },
   config: { read: async <T = unknown>() => config() as T, write: async () => ({ workspaceRevision: 2 }) },
   content: { listNotes: async (query = {}) => ({ workspaceRevision, notes: query.noteIds ? notes.filter((note) => query.noteIds!.includes(note.noteId)) : notes, availableMediaIds: [] }) },
+  migration: { exportWorkspace: async () => ({ document: {}, media: [] }), commit: async () => ({ workspaceRevision }) },
   }
 }
 

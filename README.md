@@ -1,8 +1,6 @@
-# NeoAnki TTS
+# Text to Speech
 
-A full text-to-speech studio for Neo Anki. It combines provider-quality cloud voices, free system voices, reusable profiles, batch generation, and offline review playback in an independently installable extension.
-
-NeoAnki TTS uses only the public SDK v2 contract. Provider logic runs in an isolated worker; Settings and Review run in sandboxed iframes. The host mediates scoped content reads, namespaced metadata patches, media creation, network calls, synchronized non-secret configuration, and device-local credentials.
+Add spoken prompts and answers to Neo Anki with free system voices or cloud speech providers. Text to Speech can play audio live while you study or generate it ahead of time for consistent offline playback.
 
 ## Features
 
@@ -15,7 +13,7 @@ NeoAnki TTS uses only the public SDK v2 contract. Provider logic runs in an isol
 - Real-time tracks, generated-and-cached tracks, or both in one profile.
 - Custom source templates using `{{prompt}}`, `{{answer}}`, `{{context}}`, `{{collection}}`, and `{{tags}}`.
 - HTML cleanup, cloze unwrapping, existing sound-tag removal, optional bracket removal, and ordered literal or regular-expression pronunciation rules.
-- Bounded batch generation with retries, active-request cancellation, per-track errors, and incremental atomic commits.
+- Safe batch generation with retries, cancellation, per-track errors, and resumable progress.
 - Deterministic stale detection: changed text, voice, model, language, speed, instructions, provider defaults, or fallback configuration is regenerated; unchanged work is skipped.
 - Content-addressed media deduplication and per-track replacement.
 - Generated audio is stored as verified Neo Anki media, so it works offline and is included in workspace backups. It participates in synchronization when the host’s encrypted sync service is enabled.
@@ -31,21 +29,21 @@ NeoAnki TTS uses only the public SDK v2 contract. Provider logic runs in an isol
 | Google Cloud | Yes | Yes | API voice catalog | API key |
 | Azure Speech | Yes | Yes | Regional voice catalog | API key + region |
 
-Provider use can incur charges from that provider. NeoAnki TTS does not proxy, resell, or mark up speech requests.
+Cloud providers may charge for speech generation. Text to Speech sends requests directly to the provider you configure and adds no markup.
 
 ## Install
 
-1. Download `org.neoanki.tts-2.0.2.neoanki-extension` from the latest release.
+1. Download `org.neoanki.tts-2.0.3.neoanki-extension` from the latest release.
 2. In Neo Anki, open **Settings → Extensions → Install from file**.
-3. Review the signed publisher identity, isolated settings/review surfaces, scoped content read and metadata-write capabilities, network access, device-local secret storage, synchronized configuration, and exact allowed HTTPS domains.
+3. Review the requested permissions, cloud-provider domains, and device-only credential storage.
 4. Install and reload Neo Anki.
-5. Open **Settings → NeoAnki TTS**.
+5. Open **Settings → Text to Speech**.
 
-Start for free with the default two-track system-voice profile. For portable, consistent audio, add a cloud provider key, choose a provider and voice under **Profiles and tracks**, switch tracks to **Generated and cached**, and run **Generate missing and stale audio**.
+Start for free with the default two-track system-voice profile. For portable, consistent audio, add a cloud provider key, choose a provider and voice under **Profiles and audio tracks**, select **Save for offline playback**, and run **Generate missing and outdated audio**.
 
 ## How generated audio works
 
-For every matching item and generated track, the extension renders its source, applies the profile’s text rules, and hashes the effective text plus every synthesis setting. If that cache key is current, the request is skipped. Otherwise the selected provider returns audio, which is content-hashed, stored as a normal media asset, and attached under namespaced track metadata.
+For every matching item and generated track, Text to Speech prepares the selected text and checks whether the current voice settings already have up-to-date audio. Current audio is skipped. New audio is stored with the collection and linked to that track.
 
 This produces three useful guarantees:
 
@@ -74,7 +72,7 @@ npm run check
 npm run build
 ```
 
-The installable, Ed25519-signed artifact is written to `build/org.neoanki.tts-2.0.2.neoanki-extension`. The checked-in private key is deliberately a development-only fixture. Production publishers must supply `NEO_ANKI_EXTENSION_SIGNING_KEY` from protected release secrets and publish the matching public key in the manifest.
+The installable, Ed25519-signed artifact is written to `build/org.neoanki.tts-2.0.3.neoanki-extension`. The checked-in private key is deliberately a development-only fixture. Production publishers must supply `NEO_ANKI_EXTENSION_SIGNING_KEY` from protected release secrets and publish the matching public key in the manifest.
 
 Tagged releases also verify the exact core/SDK commit declared by `neoAnki.coreRef` and stamp both the TTS source commit and core commit into the signed package provenance. A release fails if either packaged value differs from the checked-out immutable input.
 
