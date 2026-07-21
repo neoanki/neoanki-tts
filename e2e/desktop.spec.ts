@@ -1,6 +1,6 @@
 import { expect, test, _electron as electron, type ElectronApplication } from '@playwright/test'
 import { createRequire } from 'node:module'
-import { mkdtemp, readFile, rm } from 'node:fs/promises'
+import { mkdtemp, readFile, readdir, rm } from 'node:fs/promises'
 import { tmpdir } from 'node:os'
 import { dirname, join, resolve } from 'node:path'
 import { fileURLToPath } from 'node:url'
@@ -47,7 +47,9 @@ const persistedTrack = (window: Awaited<ReturnType<ElectronApplication['firstWin
 test('installs the full extension and keeps provider credentials behind the secret broker', async () => {
   test.setTimeout(240_000)
   const userData = await mkdtemp(join(tmpdir(), 'neoanki-tts-'))
-  const packagePath = join(extensionRoot, 'build', 'org.neoanki.tts-2.0.6.neoanki-extension')
+  const packageName = (await readdir(join(extensionRoot, 'build'))).find((name) => /^org\.neoanki\.tts-.*\.neoanki-extension$/.test(name))
+  if (!packageName) throw new Error('The TTS extension package was not built before the desktop test.')
+  const packagePath = join(extensionRoot, 'build', packageName)
   const insecureLinuxBackend = process.platform === 'linux'
   let desktop = await electron.launch({
     executablePath: electronExecutable,
