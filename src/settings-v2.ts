@@ -103,8 +103,24 @@ void createSandboxedUiClient().then(async (client) => {
     }
   }
   select('secret-provider').onchange = () => void refreshSecret(); await refreshSecret()
-  byId('save-secret').onclick = async () => { try { await call('secret.set', { provider: select('secret-provider').value, value: input('secret').value }); input('secret').value = ''; await refreshSecret() } catch (error) { byId('secret-status').textContent = error instanceof Error ? error.message : 'Credential save failed.' } }
-  byId('delete-secret').onclick = async () => { try { await call('secret.delete', { provider: select('secret-provider').value }); input('secret').value = ''; await refreshSecret() } catch (error) { byId('secret-status').textContent = error instanceof Error ? error.message : 'Credential deletion failed.' } }
+  const setSecretMutationBusy = (busy: boolean) => {
+    ;(byId('save-secret') as HTMLButtonElement).disabled = busy
+    ;(byId('delete-secret') as HTMLButtonElement).disabled = busy
+    select('secret-provider').disabled = busy
+    input('secret').disabled = busy
+  }
+  byId('save-secret').onclick = async () => {
+    setSecretMutationBusy(true); byId('secret-status').textContent = 'Saving API key…'
+    try { await call('secret.set', { provider: select('secret-provider').value, value: input('secret').value }); input('secret').value = ''; await refreshSecret() }
+    catch (error) { byId('secret-status').textContent = error instanceof Error ? error.message : 'Credential save failed.' }
+    finally { setSecretMutationBusy(false) }
+  }
+  byId('delete-secret').onclick = async () => {
+    setSecretMutationBusy(true); byId('secret-status').textContent = 'Deleting API key…'
+    try { await call('secret.delete', { provider: select('secret-provider').value }); input('secret').value = ''; await refreshSecret() }
+    catch (error) { byId('secret-status').textContent = error instanceof Error ? error.message : 'Credential deletion failed.' }
+    finally { setSecretMutationBusy(false) }
+  }
   const finishPolling = () => {
     jobId = ''
     consecutivePollFailures = 0
