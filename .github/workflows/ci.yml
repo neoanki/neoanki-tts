@@ -53,7 +53,10 @@ jobs:
         run: npm run test:desktop
         working-directory: neoanki-tts
       - uses: actions/upload-artifact@v7
-        if: runner.os == 'Linux'
+        if: runner.os == 'Linux' && always()
         with:
           name: neoanki-tts-extension
-          path: neoanki-tts/build/*.neoanki-extension
+          path: |
+            neoanki-tts/build/*.neoanki-extension
+            neoanki-tts/test-results/
+          if-no-files-found: ignore
