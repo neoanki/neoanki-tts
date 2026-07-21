@@ -52,7 +52,7 @@ test('installs the full extension and keeps provider credentials encrypted', asy
   let desktop = await electron.launch({
     executablePath: electronExecutable,
     args: [...(insecureLinuxBackend ? ['--password-store=basic'] : []), coreRoot, `--install-extension=${packagePath}`],
-    env: { ...process.env, NEO_ANKI_USER_DATA_DIR: userData, NEO_ANKI_TEST_ALLOW_MULTIPLE_INSTANCES: '1' },
+    env: { ...process.env, NEO_ANKI_USER_DATA_DIR: userData, NEO_ANKI_TEST_ALLOW_MULTIPLE_INSTANCES: '1', NEO_ANKI_E2E_HEADLESS: '1' },
   })
   try {
     let window = await desktop.firstWindow()
@@ -67,6 +67,7 @@ test('installs the full extension and keeps provider credentials encrypted', asy
     const settings = window.frameLocator('iframe[title="Text to Speech: settings"]')
     await expect(settings.getByRole('heading', { name: 'Text to Speech' })).toBeVisible()
     await expect(settings.getByText(/Cloud voice privacy/i)).toBeVisible()
+    await expect(settings.locator('#status')).toBeEmpty()
     await expect(settings.locator('#profile')).toHaveValue('language-learning')
     await expect(settings.locator('#track')).toHaveValue('prompt')
     await expect(settings.locator('#secret-status')).not.toBeEmpty()
@@ -105,7 +106,7 @@ test('installs the full extension and keeps provider credentials encrypted', asy
     if (process.env.NEOANKI_TTS_SCREENSHOT) await window.screenshot({ path: process.env.NEOANKI_TTS_SCREENSHOT, fullPage: true })
 
     await desktop.close()
-    desktop = await electron.launch({ executablePath: electronExecutable, args: [...(insecureLinuxBackend ? ['--password-store=basic'] : []), coreRoot], env: { ...process.env, NEO_ANKI_USER_DATA_DIR: userData, NEO_ANKI_TEST_ALLOW_MULTIPLE_INSTANCES: '1' } })
+    desktop = await electron.launch({ executablePath: electronExecutable, args: [...(insecureLinuxBackend ? ['--password-store=basic'] : []), coreRoot], env: { ...process.env, NEO_ANKI_USER_DATA_DIR: userData, NEO_ANKI_TEST_ALLOW_MULTIPLE_INSTANCES: '1', NEO_ANKI_E2E_HEADLESS: '1' } })
     window = await desktop.firstWindow(); await registerProviderMock(desktop, 'fail')
     await window.addInitScript(() => {
       Object.defineProperty(HTMLMediaElement.prototype, 'play', { configurable: true, value() { document.documentElement.dataset.neoAnkiTestPlayed = (this as HTMLMediaElement).src; setTimeout(() => this.dispatchEvent(new Event('ended')), 10); return Promise.resolve() } })
