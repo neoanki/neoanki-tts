@@ -44,7 +44,7 @@ const persistedTrack = (window: Awaited<ReturnType<ElectronApplication['firstWin
   return config?.profiles?.[0]?.tracks?.[0] || null
 })
 
-test('installs the full extension and keeps provider credentials encrypted', async () => {
+test('installs the full extension and keeps provider credentials behind the secret broker', async () => {
   test.setTimeout(240_000)
   const userData = await mkdtemp(join(tmpdir(), 'neoanki-tts-'))
   const packagePath = join(extensionRoot, 'build', 'org.neoanki.tts-2.0.6.neoanki-extension')
@@ -52,7 +52,7 @@ test('installs the full extension and keeps provider credentials encrypted', asy
   let desktop = await electron.launch({
     executablePath: electronExecutable,
     args: [...(insecureLinuxBackend ? ['--password-store=basic'] : []), coreRoot, `--install-extension=${packagePath}`],
-    env: { ...process.env, NEO_ANKI_USER_DATA_DIR: userData, NEO_ANKI_TEST_ALLOW_MULTIPLE_INSTANCES: '1', NEO_ANKI_E2E_HEADLESS: '1' },
+    env: { ...process.env, NEO_ANKI_USER_DATA_DIR: userData, NEO_ANKI_TEST_ALLOW_MULTIPLE_INSTANCES: '1', NEO_ANKI_E2E_HEADLESS: '1', NEO_ANKI_E2E_SECRET_BACKEND: 'disposable-file' },
   })
   try {
     let window = await desktop.firstWindow()
@@ -90,19 +90,8 @@ test('installs the full extension and keeps provider credentials encrypted', asy
 
     await settings.locator('#quick-openai-key').fill('local-test-key-not-real')
     await settings.getByRole('button', { name: 'Enable offline audio' }).click()
-    if (insecureLinuxBackend) {
-      await expect(settings.getByText(/secure OS credential storage is unavailable/i)).toBeVisible()
-    } else {
-      await expect(settings.locator('#quick-setup-status')).toHaveText(/Offline prompt audio is ready/i)
-      await expect(settings.getByText(/OpenAI key is configured/i)).toBeVisible()
-    }
-    if (insecureLinuxBackend) {
-      const saveSettings = settings.getByRole('button', { name: 'Save settings' })
-      await expect(saveSettings).toBeEnabled()
-      await saveSettings.dispatchEvent('click')
-      await expect(settings.locator('#status')).toHaveText('Settings saved to the encrypted workspace.', { timeout: 30_000 })
-      expect(rendererErrors).toEqual([])
-    } else {
+    await expect(settings.locator('#quick-setup-status')).toHaveText(/Offline prompt audio is ready/i)
+    await expect(settings.getByText(/OpenAI key is configured/i)).toBeVisible()
     await expect.poll(() => persistedTrack(window), { timeout: 30_000 }).toMatchObject({ provider: 'openai', mode: 'generated', voice: 'coral' })
     await expect(settings.locator('#provider-disclosure')).toContainText(/processed prompt text is sent to OpenAI using model/i)
     await expect(settings.locator('#provider-disclosure a')).toHaveAttribute('href', /platform\.openai\.com/)
@@ -138,7 +127,7 @@ test('installs the full extension and keeps provider credentials encrypted', asy
     if (process.env.NEOANKI_TTS_SCREENSHOT) await window.screenshot({ path: process.env.NEOANKI_TTS_SCREENSHOT, fullPage: true })
 
     await desktop.close()
-    desktop = await electron.launch({ executablePath: electronExecutable, args: [...(insecureLinuxBackend ? ['--password-store=basic'] : []), coreRoot], env: { ...process.env, NEO_ANKI_USER_DATA_DIR: userData, NEO_ANKI_TEST_ALLOW_MULTIPLE_INSTANCES: '1', NEO_ANKI_E2E_HEADLESS: '1' } })
+    desktop = await electron.launch({ executablePath: electronExecutable, args: [...(insecureLinuxBackend ? ['--password-store=basic'] : []), coreRoot], env: { ...process.env, NEO_ANKI_USER_DATA_DIR: userData, NEO_ANKI_TEST_ALLOW_MULTIPLE_INSTANCES: '1', NEO_ANKI_E2E_HEADLESS: '1', NEO_ANKI_E2E_SECRET_BACKEND: 'disposable-file' } })
     window = await desktop.firstWindow(); await registerProviderMock(desktop, 'fail')
     await window.addInitScript(() => {
       Object.defineProperty(HTMLMediaElement.prototype, 'play', { configurable: true, value() { document.documentElement.dataset.neoAnkiTestPlayed = (this as HTMLMediaElement).src; setTimeout(() => this.dispatchEvent(new Event('ended')), 10); return Promise.resolve() } })
@@ -189,7 +178,6 @@ test('installs the full extension and keeps provider credentials encrypted', asy
     await expect(stopBatch).toBeEnabled()
     await stopBatch.dispatchEvent('click')
     await expect(updatedSettings.locator('#batch-status')).toContainText('cancelled:', { timeout: 15_000 })
-    }
   } finally {
     const child = desktop.process()
     if (child.exitCode === null) {
@@ -200,12 +188,8 @@ test('installs the full extension and keeps provider credentials encrypted', asy
 
   try {
     const secretFile = join(userData, 'extensions', 'data', 'org.neoanki.tts', 'secrets.json')
-    if (insecureLinuxBackend) {
-      expect(await readFile(secretFile, 'utf8').then(() => true, () => false)).toBe(false)
-    } else {
-      const stored = await readFile(secretFile, 'utf8')
-      expect(stored).not.toContain('local-test-key-not-real')
-      expect(JSON.parse(stored).values['openai.api-key']).toMatch(/^[A-Za-z0-9+/=]+$/)
-    }
+    const stored = await readFile(secretFile, 'utf8')
+    expect(stored).not.toContain('local-test-key-not-real')
+    expect(JSON.parse(stored).values['openai.api-key']).toMatch(/^[A-Za-z0-9+/=]+$/)
   } finally { await rm(userData, { recursive: true, force: true }) }
 })
