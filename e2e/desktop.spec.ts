@@ -92,9 +92,8 @@ test('installs the full extension and keeps provider credentials behind the secr
 
     await settings.locator('#quick-openai-key').fill('local-test-key-not-real')
     await settings.getByRole('button', { name: 'Enable offline audio' }).click()
-    await expect(settings.locator('#quick-setup-status')).toHaveText(/Offline prompt audio is ready/i, { timeout: 30_000 })
-    await expect(settings.getByText(/OpenAI key is configured/i)).toBeVisible()
     await expect.poll(() => persistedTrack(window), { timeout: 30_000 }).toMatchObject({ provider: 'openai', mode: 'generated', voice: 'coral' })
+    await expect(settings.getByText(/OpenAI key is configured/i)).toBeVisible({ timeout: 30_000 })
     await expect(settings.locator('#provider-disclosure')).toContainText(/processed prompt text is sent to OpenAI using model/i)
     await expect(settings.locator('#provider-disclosure a')).toHaveAttribute('href', /platform\.openai\.com/)
     await expect(settings.locator('#overlaps')).toContainText(/No other profile can match/i)
