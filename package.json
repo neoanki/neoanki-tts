@@ -1,6 +1,6 @@
 {
   "name": "@neoanki/tts",
-  "version": "2.0.5",
+  "version": "2.0.6",
   "description": "Spoken prompts and answers with system voices, cloud providers, and offline audio.",
   "license": "MIT",
   "type": "module",
