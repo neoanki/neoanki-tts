@@ -3,7 +3,8 @@
   "schemaVersion": 2,
   "id": "org.neoanki.tts",
   "name": "Text to Speech",
-  "version": "2.0.3",
+  "version": "2.0.4",
+  "minimumNeoAnkiVersion": "0.4.0",
   "sdkVersion": 2,
   "publisher": "NeoAnki contributors",
   "description": "Add spoken prompts and answers with system voices or configurable cloud providers.",
@@ -13,8 +14,13 @@
   "networkDomains": ["api.openai.com", "api.elevenlabs.io", "texttospeech.googleapis.com", "*.tts.speech.microsoft.com"],
   "workerEntry": "dist/worker.js",
   "uiEntries": [
-    { "id": "settings", "surface": "settings", "entry": "dist/settings.js" },
-    { "id": "review", "surface": "review", "entry": "dist/review.js" }
+    { "id": "settings", "surface": "settings", "entry": "dist/settings.js", "label": "Text to Speech", "description": "Choose voices, providers, and offline audio tracks.", "helpText": "System voices play during review; configured cloud tracks can create portable audio.", "icon": "volume-2", "launchDestination": "extensions/configure" },
+    { "id": "review", "surface": "review", "entry": "dist/review.js", "label": "Speech controls", "description": "Play configured prompt and answer speech during review.", "icon": "volume-2", "launchDestination": "review" }
   ],
-  "provenance": { "sourceCommit": "df52d49ccb2d4b6090f8ce9d4b142def52f5acef", "coreCommit": "deaa3869c5144fd6701b1477ffc1501be646c638", "buildSystem": "neo-anki-extension-cli" }
+  "contributions": {
+    "authoringActions": [
+      { "id": "generate-offline-audio", "label": "Generate offline audio after adding knowledge", "description": "After saving, generate portable audio for the matching profile's configured cloud tracks. System and realtime voices play during review but do not create files.", "defaultSelected": false, "availability": "status-required", "configurationDestination": "settings" }
+    ]
+  },
+  "provenance": { "sourceCommit": "df52d49ccb2d4b6090f8ce9d4b142def52f5acef", "coreCommit": "7ad6541f1e4a15553d6ffd31c70708ae193691fe", "buildSystem": "neo-anki-extension-cli" }
 }
