@@ -97,7 +97,12 @@ test('installs the full extension and keeps provider credentials behind the secr
       setupStatus: await settings.locator('#quick-setup-status').textContent(),
       secretStatus: await settings.locator('#secret-status').textContent(),
       keyRetained: Boolean(await settings.locator('#quick-openai-key').inputValue()),
-    }), { timeout: 30_000 }).toMatchObject({ provider: 'openai' })
+    }), { timeout: 30_000 }).toEqual({
+      provider: 'openai',
+      setupStatus: 'Offline prompt audio is ready. Return to New knowledge and select Generate offline audio.',
+      secretStatus: 'OpenAI key is configured on this device.',
+      keyRetained: false,
+    })
     await expect(settings.locator('#mode')).toHaveValue('generated')
     await expect(settings.locator('#voice')).toHaveValue('coral')
     await expect(settings.getByText(/OpenAI key is configured/i)).toBeVisible({ timeout: 30_000 })
