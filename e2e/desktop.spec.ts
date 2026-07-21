@@ -1,6 +1,6 @@
 import { expect, test, _electron as electron, type ElectronApplication } from '@playwright/test'
 import { createRequire } from 'node:module'
-import { mkdtemp, readFile, rm } from 'node:fs/promises'
+import { mkdtemp, readFile, readdir, rm } from 'node:fs/promises'
 import { tmpdir } from 'node:os'
 import { dirname, join, resolve } from 'node:path'
 import { fileURLToPath } from 'node:url'
@@ -47,7 +47,9 @@ const persistedTrack = (window: Awaited<ReturnType<ElectronApplication['firstWin
 test('installs the full extension and keeps provider credentials behind the secret broker', async () => {
   test.setTimeout(240_000)
   const userData = await mkdtemp(join(tmpdir(), 'neoanki-tts-'))
-  const packagePath = join(extensionRoot, 'build', 'org.neoanki.tts-2.0.6.neoanki-extension')
+  const packageName = (await readdir(join(extensionRoot, 'build'))).find((name) => /^org\.neoanki\.tts-.*\.neoanki-extension$/.test(name))
+  if (!packageName) throw new Error('The TTS extension package was not built before the desktop test.')
+  const packagePath = join(extensionRoot, 'build', packageName)
   const insecureLinuxBackend = process.platform === 'linux'
   let desktop = await electron.launch({
     executablePath: electronExecutable,
@@ -89,10 +91,23 @@ test('installs the full extension and keeps provider credentials behind the secr
     if (process.env.NEOANKI_TTS_SCREENSHOT) await window.screenshot({ path: process.env.NEOANKI_TTS_SCREENSHOT.replace(/\.png$/, '-profiles.png'), fullPage: true })
 
     await settings.locator('#quick-openai-key').fill('local-test-key-not-real')
-    await settings.getByRole('button', { name: 'Enable offline audio' }).click()
-    await expect(settings.locator('#quick-setup-status')).toHaveText(/Offline prompt audio is ready/i)
-    await expect(settings.getByText(/OpenAI key is configured/i)).toBeVisible()
-    await expect.poll(() => persistedTrack(window), { timeout: 30_000 }).toMatchObject({ provider: 'openai', mode: 'generated', voice: 'coral' })
+    const enableOfflineAudio = settings.getByRole('button', { name: 'Enable offline audio' })
+    await expect(enableOfflineAudio).toBeEnabled()
+    await enableOfflineAudio.dispatchEvent('click')
+    await expect.poll(async () => ({
+      provider: await settings.locator('#provider').inputValue(),
+      setupStatus: await settings.locator('#quick-setup-status').textContent(),
+      secretStatus: await settings.locator('#secret-status').textContent(),
+      keyRetained: Boolean(await settings.locator('#quick-openai-key').inputValue()),
+    }), { timeout: 30_000 }).toEqual({
+      provider: 'openai',
+      setupStatus: 'Offline prompt audio is ready. Return to New knowledge and select Generate offline audio.',
+      secretStatus: 'OpenAI key is configured on this device.',
+      keyRetained: false,
+    })
+    await expect(settings.locator('#mode')).toHaveValue('generated')
+    await expect(settings.locator('#voice')).toHaveValue('coral')
+    await expect(settings.getByText(/OpenAI key is configured/i)).toBeVisible({ timeout: 30_000 })
     await expect(settings.locator('#provider-disclosure')).toContainText(/processed prompt text is sent to OpenAI using model/i)
     await expect(settings.locator('#provider-disclosure a')).toHaveAttribute('href', /platform\.openai\.com/)
     await expect(settings.locator('#overlaps')).toContainText(/No other profile can match/i)
