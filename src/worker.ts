@@ -228,6 +228,7 @@ const handleCommand = async (request: Extract<WorkerContributionRequest, { type:
     if (!config.enabled) throw new Error('Text to Speech is disabled. Enable it in extension settings before generating audio.')
     const job: BatchJob = { id: crypto.randomUUID(), state: 'running', completed: 0, total: 0, generated: 0, skipped: 0, failures: 0, cancelled: false, operationIds: new Set(), failedNoteIds: new Set() }; jobs.set(job.id, job); void runBatch(host, job, Array.isArray(payload?.noteIds) ? [...new Set(payload.noteIds.map(String).filter(Boolean))].slice(0, 100_000) : undefined); return publicJob(job)
   }
+  if (request.commandId === 'batch.current') { const job = [...jobs.values()].at(-1); return job ? publicJob(job) : null }
   if (request.commandId === 'batch.status') { const job = jobs.get(String(payload?.jobId)); if (!job) throw new Error('Batch job was not found.'); return publicJob(job) }
   if (request.commandId === 'batch.cancel') { const job = jobs.get(String(payload?.jobId)); if (!job) throw new Error('Batch job was not found.'); job.cancelled = true; await Promise.allSettled([...job.operationIds].map((operationId) => host.cancel(operationId))); return publicJob(job) }
   if (request.commandId === 'batch.retry') {

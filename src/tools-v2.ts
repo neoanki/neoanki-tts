@@ -36,8 +36,6 @@ const describeJob = (job: BatchJob) => `${job.state}: ${job.completed}/${job.tot
 void createSandboxedUiClient().then((client) => {
   document.documentElement.dataset.theme = client.init.theme
   const call = <T,>(commandId: string, payload?: unknown) => client.call<T>('command', { commandId, payload })
-  startButton.disabled = false
-  loadVoicesButton.disabled = false
 
   const setJob = (job: BatchJob) => {
     jobId = job.id
@@ -103,6 +101,15 @@ void createSandboxedUiClient().then((client) => {
     } catch (error) { voiceStatus.textContent = error instanceof Error ? error.message : 'Provider voices could not be loaded.' }
     finally { loadVoicesButton.disabled = false }
   }
+  loadVoicesButton.disabled = false
+  void call<BatchJob | null>('batch.current').then((job) => {
+    if (!job) { startButton.disabled = false; return }
+    setJob(job)
+    if (job.state === 'running') void poll()
+  }).catch((error) => {
+    batchStatus.textContent = error instanceof Error ? error.message : 'Generation status could not be loaded.'
+    startButton.disabled = false
+  })
   window.addEventListener('beforeunload', () => window.clearTimeout(pollTimer))
 }).catch((error) => {
   batchStatus.textContent = error instanceof Error ? error.message : 'Text to Speech tools could not start.'

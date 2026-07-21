@@ -73,6 +73,7 @@ describe('SDK v2 TTS worker batches', () => {
       return { status: 200, headers: { 'content-type': 'audio/mpeg' }, body: new TextEncoder().encode('ID3fixture-audio') }
     }, async () => undefined, 1)
     const started = await command<PublicBatchJob>(host, 'batch.start')
+    await expect(command<PublicBatchJob>(host, 'batch.current')).resolves.toMatchObject({ id: started.id })
     let status = started
     await waitFor(async () => { status = await command<PublicBatchJob>(host, 'batch.status', { jobId: started.id }); return status.state !== 'running' })
     expect(status).toMatchObject({ state: 'completed', completed: 2, total: 2, generated: 2, failures: 0 })
